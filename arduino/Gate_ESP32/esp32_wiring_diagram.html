@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ESP32 Wiring Diagram</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e17;
+    font-family: 'Share Tech Mono', monospace;
+    color: #e0e8ff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(30,80,180,0.18) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,80,180,0.07) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,80,180,0.07) 40px);
+  }
+
+  h1 {
+    font-family: 'Exo 2', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.3rem, 3vw, 2rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7eb8ff;
+    text-shadow: 0 0 24px rgba(100,160,255,0.5);
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 0.78rem;
+    color: #4a6a9a;
+    letter-spacing: 0.18em;
+    margin-bottom: 36px;
+    text-transform: uppercase;
+  }
+
+  .diagram-wrap {
+    width: 100%;
+    max-width: 960px;
+    overflow-x: auto;
+  }
+
+  svg {
+    display: block;
+    margin: 0 auto;
+    filter: drop-shadow(0 8px 48px rgba(30,80,180,0.25));
+  }
+
+  /* chip labels */
+  .chip-label { font-family: 'Exo 2', sans-serif; font-weight: 700; font-size: 13px; }
+  .pin-label  { font-family: 'Share Tech Mono', monospace; font-size: 10.5px; }
+  .wire-label { font-family: 'Share Tech Mono', monospace; font-size: 9.5px; }
+  .note-text  { font-family: 'Share Tech Mono', monospace; font-size: 9px; fill: #607090; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 32px;
+    justify-content: center;
+    margin-top: 32px;
+    font-size: 0.78rem;
+    color: #6080a8;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend-dot {
+    width: 22px; height: 4px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<h1>ESP32 Wiring Diagram</h1>
+<div class="subtitle">MFRC522 RFID &nbsp;+&nbsp; HX711 Load Cell &nbsp;+&nbsp; WiFi / MQTT</div>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 940 560" width="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Glows -->
+    <filter id="glow-blue" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-green" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-chip" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- ESP32 body gradient -->
+    <linearGradient id="esp32Grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2a4a"/>
+      <stop offset="100%" stop-color="#0d1828"/>
+    </linearGradient>
+    <!-- RFID body -->
+    <linearGradient id="rfidGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a3040"/>
+      <stop offset="100%" stop-color="#0d1e2c"/>
+    </linearGradient>
+    <!-- HX711 body -->
+    <linearGradient id="hxGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2a20"/>
+      <stop offset="100%" stop-color="#0d1a10"/>
+    </linearGradient>
+
+    <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#4a9eff" opacity="0.7"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#ff9a3c" opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <!-- ══════════════════════════════════════════
+       ESP32 CHIP  (center)
+  ════════════════════════════════════════════ -->
+  <!-- Shadow -->
+  <rect x="348" y="103" width="244" height="354" rx="12" fill="rgba(30,100,255,0.12)" filter="url(#glow-chip)"/>
+  <!-- Body -->
+  <rect x="350" y="105" width="240" height="350" rx="10" fill="url(#esp32Grad)" stroke="#2a5aaa" stroke-width="1.5"/>
+  <!-- Module highlight strip -->
+  <rect x="370" y="120" width="200" height="14" rx="4" fill="#1e3a6a" opacity="0.7"/>
+  <!-- Chip label -->
+  <text x="470" y="133" text-anchor="middle" class="chip-label" fill="#7eb8ff" filter="url(#glow-blue)">ESP32</text>
+  <text x="470" y="148" text-anchor="middle" font-family="Share Tech Mono" font-size="8.5" fill="#3a5a8a">DevKit / WROOM-32</text>
+
+  <!-- Left pins of ESP32 -->
+  <!-- Pin rows (y positions): 175, 197, 219, 241, 263, 285, 307, 329, 351, 373, 395 -->
+
+  <!-- Right pins labels (SPI + GPIO) -->
+  <!-- SPI MOSI GPIO23 -->
+  <rect x="351" y="168" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.8"/>
+  <text x="367" y="179" class="pin-label" fill="#a0c8ff">GPIO 23</text>
+  <text x="430" y="179" class="pin-label" fill="#4a9eff">(MOSI)</text>
+
+  <!-- SPI MISO GPIO19 -->
+  <rect x="351" y="190" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.8"/>
+  <text x="367" y="201" class="pin-label" fill="#a0c8ff">GPIO 19</text>
+  <text x="430" y="201" class="pin-label" fill="#4a9eff">(MISO)</text>
+
+  <!-- SPI SCK GPIO18 -->
+  <rect x="351" y="212" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.8"/>
+  <text x="367" y="223" class="pin-label" fill="#a0c8ff">GPIO 18</text>
+  <text x="430" y="223" class="pin-label" fill="#4a9eff">(SCK)</text>
+
+  <!-- SS GPIO5 -->
+  <rect x="351" y="234" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.8"/>
+  <text x="367" y="245" class="pin-label" fill="#a0c8ff">GPIO 5</text>
+  <text x="430" y="245" class="pin-label" fill="#4a9eff">(SS)</text>
+
+  <!-- HX711 DOUT GPIO32 -->
+  <rect x="351" y="290" width="8" height="14" rx="2" fill="#4aff9a" opacity="0.8"/>
+  <text x="367" y="301" class="pin-label" fill="#a0ffc8">GPIO 32</text>
+  <text x="430" y="301" class="pin-label" fill="#4aff9a">(DOUT)</text>
+
+  <!-- HX711 SCK GPIO4 -->
+  <rect x="351" y="312" width="8" height="14" rx="2" fill="#4aff9a" opacity="0.8"/>
+  <text x="367" y="323" class="pin-label" fill="#a0ffc8">GPIO 4</text>
+  <text x="430" y="323" class="pin-label" fill="#4aff9a">(SCK)</text>
+
+  <!-- 3.3V -->
+  <rect x="351" y="356" width="8" height="14" rx="2" fill="#ff5555" opacity="0.9"/>
+  <text x="367" y="367" class="pin-label" fill="#ff9090">3.3V</text>
+  <text x="430" y="367" class="pin-label" fill="#ff5555">(VCC)</text>
+
+  <!-- GND -->
+  <rect x="351" y="378" width="8" height="14" rx="2" fill="#607090" opacity="0.9"/>
+  <text x="367" y="389" class="pin-label" fill="#8898b8">GND</text>
+
+  <!-- Right pins of ESP32 (wires to right go out right side) -->
+  <!-- RST / GPIO13 (for RFID RST - we use default, commonly wired externally) -->
+  <!-- Actually from the code, only SS_PIN 5 is defined for RFID. RST uses MFRC522 default. -->
+  <!-- We'll note RST is not explicitly wired in this code but common pin is GPIO 13 -->
+  <!-- GPIO13 RST -->
+  <rect x="581" y="234" width="8" height="14" rx="2" fill="#ff9a3c" opacity="0.8"/>
+  <text x="540" y="245" text-anchor="end" class="pin-label" fill="#a0c8ff">GPIO 13</text>
+  <text x="596" y="245" class="pin-label" fill="#ff9a3c">(RST)*</text>
+
+  <!-- 5V for HX711 VCC -->
+  <rect x="581" y="356" width="8" height="14" rx="2" fill="#ff5555" opacity="0.9"/>
+  <text x="540" y="367" text-anchor="end" class="pin-label" fill="#ff9090">5V / 3.3V</text>
+
+  <!-- GND right -->
+  <rect x="581" y="378" width="8" height="14" rx="2" fill="#607090" opacity="0.9"/>
+  <text x="540" y="389" text-anchor="end" class="pin-label" fill="#8898b8">GND</text>
+
+  <!-- Divider lines -->
+  <line x1="362" y1="270" x2="578" y2="270" stroke="#1e3a5a" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="362" y1="340" x2="578" y2="340" stroke="#1e3a5a" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Section labels inside ESP32 -->
+  <text x="470" y="262" text-anchor="middle" class="note-text">SPI BUS (RFID)</text>
+  <text x="470" y="310" text-anchor="middle" class="note-text">→ moved below</text>
+  <text x="470" y="338" text-anchor="middle" class="note-text">HX711</text>
+  <text x="470" y="410" text-anchor="middle" class="note-text">POWER</text>
+
+  <!-- WiFi antenna icon -->
+  <text x="470" y="450" text-anchor="middle" font-size="9" font-family="Share Tech Mono" fill="#2a4a7a">WiFi ▸ MQTT → broker.hivemq.com:1883</text>
+  <path d="M430,465 Q470,452 510,465" stroke="#2a4a7a" stroke-width="1.2" fill="none"/>
+  <path d="M440,472 Q470,460 500,472" stroke="#2a5a9a" stroke-width="1.2" fill="none"/>
+  <path d="M450,479 Q470,470 490,479" stroke="#3a6aaa" stroke-width="1.5" fill="none"/>
+  <circle cx="470" cy="483" r="2.5" fill="#4a9eff" opacity="0.8"/>
+
+
+  <!-- ══════════════════════════════════════════
+       MFRC522 RFID MODULE  (left)
+  ════════════════════════════════════════════ -->
+  <rect x="28" y="112" width="175" height="235" rx="10" fill="url(#rfidGrad)" stroke="#1a6090" stroke-width="1.5"/>
+  <rect x="44" y="126" width="143" height="13" rx="3" fill="#154060" opacity="0.8"/>
+  <text x="116" y="137" text-anchor="middle" class="chip-label" fill="#5bc8ff" filter="url(#glow-blue)">MFRC522</text>
+  <text x="116" y="151" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#2a6080">RFID Reader</text>
+
+  <!-- RFID pins (right side, connecting to ESP32) -->
+  <!-- SDA(SS) -->
+  <rect x="201" y="168" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.9"/>
+  <text x="197" y="179" text-anchor="end" class="pin-label" fill="#a0d8ff">SDA (SS)</text>
+
+  <!-- SCK -->
+  <rect x="201" y="190" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.9"/>
+  <text x="197" y="201" text-anchor="end" class="pin-label" fill="#a0d8ff">SCK</text>
+
+  <!-- MOSI -->
+  <rect x="201" y="212" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.9"/>
+  <text x="197" y="223" text-anchor="end" class="pin-label" fill="#a0d8ff">MOSI</text>
+
+  <!-- MISO -->
+  <rect x="201" y="234" width="8" height="14" rx="2" fill="#4a9eff" opacity="0.9"/>
+  <text x="197" y="245" text-anchor="end" class="pin-label" fill="#a0d8ff">MISO</text>
+
+  <!-- RST -->
+  <rect x="201" y="256" width="8" height="14" rx="2" fill="#ff9a3c" opacity="0.9"/>
+  <text x="197" y="267" text-anchor="end" class="pin-label" fill="#ffd0a0">RST</text>
+
+  <!-- VCC -->
+  <rect x="201" y="290" width="8" height="14" rx="2" fill="#ff5555" opacity="0.9"/>
+  <text x="197" y="301" text-anchor="end" class="pin-label" fill="#ff9090">VCC (3.3V)</text>
+
+  <!-- GND -->
+  <rect x="201" y="312" width="8" height="14" rx="2" fill="#607090" opacity="0.9"/>
+  <text x="197" y="323" text-anchor="end" class="pin-label" fill="#8898b8">GND</text>
+
+  <!-- RFID card illustration -->
+  <rect x="44" y="280" width="100" height="60" rx="6" fill="#0a1e30" stroke="#1a4060" stroke-width="1.2" opacity="0.7"/>
+  <rect x="52" y="295" width="22" height="16" rx="2" fill="#1a6080" opacity="0.8"/>
+  <line x1="52" y1="303" x2="74" y2="303" stroke="#2a90b0" stroke-width="0.8"/>
+  <line x1="52" y1="307" x2="74" y2="307" stroke="#2a90b0" stroke-width="0.8"/>
+  <text x="82" y="308" font-family="Share Tech Mono" font-size="7" fill="#2a6080">UID TAG</text>
+  <text x="52" y="330" font-family="Share Tech Mono" font-size="7" fill="#1a4060">RFID CARD</text>
+
+  <!-- ══════════════════════════════════════════
+       HX711 + LOAD CELL  (right)
+  ════════════════════════════════════════════ -->
+  <rect x="737" y="112" width="175" height="190" rx="10" fill="url(#hxGrad)" stroke="#1a6030" stroke-width="1.5"/>
+  <rect x="753" y="126" width="143" height="13" rx="3" fill="#153020" opacity="0.8"/>
+  <text x="825" y="137" text-anchor="middle" class="chip-label" fill="#5bff9a" filter="url(#glow-green)">HX711</text>
+  <text x="825" y="151" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#2a6040">Load Cell Amplifier</text>
+
+  <!-- HX711 left pins connecting to ESP32 -->
+  <!-- DOUT -->
+  <rect x="729" y="168" width="8" height="14" rx="2" fill="#4aff9a" opacity="0.9"/>
+  <text x="743" y="179" class="pin-label" fill="#a0ffc8">DOUT</text>
+
+  <!-- SCK -->
+  <rect x="729" y="190" width="8" height="14" rx="2" fill="#4aff9a" opacity="0.9"/>
+  <text x="743" y="201" class="pin-label" fill="#a0ffc8">SCK (PD_SCK)</text>
+
+  <!-- VCC -->
+  <rect x="729" y="234" width="8" height="14" rx="2" fill="#ff5555" opacity="0.9"/>
+  <text x="743" y="245" class="pin-label" fill="#ff9090">VCC</text>
+
+  <!-- GND -->
+  <rect x="729" y="256" width="8" height="14" rx="2" fill="#607090" opacity="0.9"/>
+  <text x="743" y="267" class="pin-label" fill="#8898b8">GND</text>
+
+  <!-- Load cell connections on right of HX711 -->
+  <text x="825" y="200" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#1a5030">Load Cell</text>
+  <rect x="776" y="208" width="96" height="64" rx="4" fill="#0a1e10" stroke="#1a4020" stroke-width="1" opacity="0.7"/>
+  <!-- wires -->
+  <line x1="790" y1="218" x2="860" y2="218" stroke="#ff4444" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <line x1="790" y1="228" x2="860" y2="228" stroke="#000000" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <line x1="790" y1="238" x2="860" y2="238" stroke="#44ff44" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <line x1="790" y1="248" x2="860" y2="248" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.5"/>
+  <text x="775" y="221" text-anchor="end" font-family="Share Tech Mono" font-size="7.5" fill="#ff6060">E+</text>
+  <text x="775" y="231" text-anchor="end" font-family="Share Tech Mono" font-size="7.5" fill="#6080a8">E-</text>
+  <text x="775" y="241" text-anchor="end" font-family="Share Tech Mono" font-size="7.5" fill="#60c060">A+</text>
+  <text x="775" y="251" text-anchor="end" font-family="Share Tech Mono" font-size="7.5" fill="#909090">A-</text>
+  <text x="862" y="240" font-family="Share Tech Mono" font-size="7" fill="#1a5030">→ Load Cell</text>
+
+  <!-- Load cell illustration -->
+  <rect x="753" y="295" width="143" height="0" rx="0" fill="none"/>
+  <rect x="766" y="298" width="118" height="22" rx="4" fill="#0d1e10" stroke="#1a4020" stroke-width="1"/>
+  <text x="825" y="313" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#2a5030">≡ STRAIN GAUGE</text>
+
+
+  <!-- ══════════════════════════════════════════
+       WIRES
+  ════════════════════════════════════════════ -->
+
+  <!-- === RFID → ESP32 SPI wires === -->
+  <!-- SDA → GPIO5 (SS): both at y≈175 -->
+  <!-- RFID SDA pin right edge: x=209, y=175 -->
+  <!-- ESP32 GPIO5 left edge: x=351, y=241 -->
+  <path d="M209,175 C270,175 290,241 351,241" stroke="#4a9eff" stroke-width="2" fill="none" filter="url(#glow-blue)" opacity="0.85"/>
+  <text x="265" y="208" class="wire-label" fill="#3a7acc">SS</text>
+
+  <!-- SCK RFID → GPIO18 ESP32 -->
+  <path d="M209,197 C260,197 300,219 351,219" stroke="#4a9eff" stroke-width="2" fill="none" filter="url(#glow-blue)" opacity="0.75"/>
+  <text x="258" y="213" class="wire-label" fill="#3a7acc">SCK</text>
+
+  <!-- MOSI RFID → GPIO23 ESP32 -->
+  <path d="M209,219 C255,219 305,175 351,175" stroke="#4a9eff" stroke-width="2" fill="none" filter="url(#glow-blue)" opacity="0.75"/>
+  <text x="258" y="192" class="wire-label" fill="#3a7acc">MOSI</text>
+
+  <!-- MISO RFID → GPIO19 ESP32 -->
+  <path d="M209,241 C260,241 305,197 351,197" stroke="#4a9eff" stroke-width="2" fill="none" filter="url(#glow-blue)" opacity="0.65"/>
+  <text x="265" y="230" class="wire-label" fill="#3a7acc">MISO</text>
+
+  <!-- RST RFID → GPIO13 ESP32 right side -->
+  <path d="M209,263 C250,263 260,263 310,263 C330,263 340,241 350,241" stroke="#ff9a3c" stroke-width="1.5" fill="none" opacity="0.6" stroke-dasharray="5,3"/>
+  <!-- RST actually goes to right side GPIO13 on ESP32 -->
+  <path d="M209,263 L209,420 C209,435 340,445 589,445 C600,445 589,241 589,241" stroke="#ff9a3c" stroke-width="1.5" fill="none" opacity="0.5" stroke-dasharray="4,3"/>
+
+  <!-- VCC RFID ← 3.3V ESP32 -->
+  <path d="M209,297 L209,380 C209,390 260,385 280,370 C300,355 320,365 351,363" stroke="#ff5555" stroke-width="1.8" fill="none" opacity="0.7"/>
+
+  <!-- GND RFID ← GND ESP32 -->
+  <path d="M209,319 L209,395 C209,405 280,400 320,390 C340,385 345,385 351,385" stroke="#607090" stroke-width="1.8" fill="none" opacity="0.7"/>
+
+  <!-- === HX711 → ESP32 wires === -->
+  <!-- DOUT → GPIO32 -->
+  <path d="M729,175 C700,175 650,297 589,297" stroke="#4aff9a" stroke-width="2" fill="none" filter="url(#glow-green)" opacity="0.85"/>
+  <text x="645" y="240" class="wire-label" fill="#3acc7a">DOUT→32</text>
+
+  <!-- SCK HX → GPIO4 -->
+  <path d="M729,197 C700,197 660,319 589,319" stroke="#4aff9a" stroke-width="2" fill="none" filter="url(#glow-green)" opacity="0.75"/>
+  <text x="645" y="272" class="wire-label" fill="#3acc7a">SCK→4</text>
+
+  <!-- VCC HX ← 5V ESP32 right -->
+  <path d="M729,241 L700,241 L700,363 C700,373 620,373 589,363" stroke="#ff5555" stroke-width="1.8" fill="none" opacity="0.7"/>
+
+  <!-- GND HX ← GND ESP32 right -->
+  <path d="M729,263 L710,263 L710,385 C710,395 630,395 589,385" stroke="#607090" stroke-width="1.8" fill="none" opacity="0.7"/>
+
+
+  <!-- ══════════════════════════════════════════
+       POWER RAIL LABELS
+  ════════════════════════════════════════════ -->
+  <!-- 3.3V label -->
+  <rect x="150" y="370" width="60" height="16" rx="3" fill="#3a0a0a" stroke="#7a2020" stroke-width="1" opacity="0.8"/>
+  <text x="180" y="381" text-anchor="middle" font-family="Share Tech Mono" font-size="9" fill="#ff7070">3.3 V</text>
+
+  <!-- GND label -->
+  <rect x="150" y="390" width="60" height="16" rx="3" fill="#1a1e28" stroke="#404858" stroke-width="1" opacity="0.8"/>
+  <text x="180" y="401" text-anchor="middle" font-family="Share Tech Mono" font-size="9" fill="#708090">GND</text>
+
+  <!-- RST note -->
+  <text x="325" y="435" text-anchor="middle" font-family="Share Tech Mono" font-size="8.5" fill="#6a5030">* RST → GPIO 13 (optional, lib default)</text>
+
+</svg>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#4a9eff;box-shadow:0 0 6px #4a9eff;"></div> SPI Bus (RFID)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4aff9a;box-shadow:0 0 6px #4aff9a;"></div> HX711 Data</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff5555;box-shadow:0 0 4px #ff5555;"></div> VCC / Power</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#607090;"></div> GND</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff9a3c;box-shadow:0 0 4px #ff9a3c;"></div> RST (optional)</div>
+</div>
+
+<div style="margin-top:28px; font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:#2a4a6a; text-align:center; max-width:700px;">
+  Note: MFRC522 requires <span style="color:#4a90d0;">3.3V</span> — do NOT use 5V. HX711 accepts 3.3V or 5V. 
+  All GNDs share a common ground. RST pin on MFRC522 can be left floating if using library default reset.
+</div>
+
+</body>
+</html>

@@ -1,0 +1,59 @@
+HX711 Pin,ESP32 Pin,Function
+VCC,5volt
+GND,GND,Ground connection
+DT (Data),GPIO 32,Data signal line
+SCK (Clock),GPIO 4,Clock signal line
+
+Wire Color,HX711 Pin,Description
+Red,E+,Excitation (+) - Powers the load cell
+Black,E-,Excitation (-) - Ground for the load cell
+White,A-,Signal (-) - Negative output signal
+Green,A+,Signal (+) - Positive output signal
+
+Code:-  
+#include "HX711.h"
+
+const int LOADCELL_DOUT_PIN = 32;
+const int LOADCELL_SCK_PIN = 4;
+
+// --- Tuning variables ---
+const float DIVIDER   = 230.0;
+const float THRESHOLD = 25.0;
+const float OFFSET    = 0.0;
+const float ZERO_BAND = 5.0;  // snap to 0 if within ±this many grams
+
+HX711 scale;
+float last_printed = 0.0;
+
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+
+  if (!scale.is_ready()) {
+    Serial.println("ERROR: HX711 not found!");
+    while (1);
+  }
+
+  Serial.println("Zeroing... DO NOT TOUCH for 3 seconds.");
+  delay(3000);
+  scale.tare();
+  Serial.println("Zeroed!");
+}
+
+void loop() {
+  if (scale.is_ready()) {
+    long raw = scale.get_value(10);
+    float grams = (raw / DIVIDER) + OFFSET;
+
+    if (abs(grams) <= ZERO_BAND) grams = 0.0;
+
+    if (abs(grams - last_printed) >= THRESHOLD) {
+      Serial.print("Weight: ");
+      Serial.print(grams, 1);
+      Serial.println(" g");
+      last_printed = grams;
+    }
+  }
+  delay(500);
+}

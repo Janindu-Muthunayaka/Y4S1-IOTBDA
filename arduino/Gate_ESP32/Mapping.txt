@@ -1,0 +1,33 @@
+╔══════════════════════════════════════════════════════════════╗
+║                    ESP32 WIRING TABLE                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  MFRC522 RFID MODULE → ESP32                                 ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  RFID PIN      ║  ESP32 PIN   ║  NOTES                       ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  SDA (SS)      ║  GPIO 5      ║  Chip Select (SS_PIN)        ║
+║  SCK           ║  GPIO 18     ║  SPI Clock                   ║
+║  MOSI          ║  GPIO 23     ║  SPI Data Out                ║
+║  MISO          ║  GPIO 19     ║  SPI Data In                 ║
+║  RST           ║  GPIO 13     ║  Reset (optional)            ║
+║  VCC           ║  3.3V        ║  !! DO NOT USE 5V !!         ║
+║  GND           ║  GND         ║  Common Ground               ║
+╠════════════════╩══════════════╩══════════════════════════════╣
+║  HX711 LOAD CELL AMPLIFIER → ESP32                           ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  HX711 PIN     ║  ESP32 PIN   ║  NOTES                       ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  DOUT          ║  GPIO 32     ║  Data Out (LOADCELL_DOUT)    ║
+║  SCK (PD_SCK)  ║  GPIO 4      ║  Clock    (LOADCELL_SCK)     ║
+║  VCC           ║  3.3V / 5V   ║  Both voltages supported     ║
+║  GND           ║  GND         ║  Common Ground               ║
+╠════════════════╩══════════════╩══════════════════════════════╣
+║  LOAD CELL → HX711                                           ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  LOAD CELL     ║  HX711 PIN   ║  TYPICAL WIRE COLOR          ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  Excitation +  ║  E+          ║  Red                         ║
+║  Excitation -  ║  E-          ║  Black                       ║
+║  Signal +      ║  A+          ║  Green / White               ║
+║  Signal -      ║  A-          ║  White / Green               ║
+╚════════════════╩══════════════╩══════════════════════════════╝
