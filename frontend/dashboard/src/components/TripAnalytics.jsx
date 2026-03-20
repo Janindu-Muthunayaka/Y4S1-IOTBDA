@@ -120,6 +120,13 @@ export default function TripAnalytics() {
 
     const isLive = trip.status === 'ACTIVE';
 
+    // Legacy Schema matching for accurate metric calculation on older db records
+    const w1 = trip.weight1 ?? trip.start_weight ?? trip.weight;
+    const w2 = trip.weight2 ?? trip.end_weight;
+    const retention = (w1 !== undefined && w2 !== undefined && w1 !== 0)
+        ? ((w2 / w1) * 100).toFixed(1) + '%'
+        : '--';
+
     return (
         <div className="glass-card">
             <button className="back-btn" onClick={() => navigate('/')}>
@@ -134,10 +141,18 @@ export default function TripAnalytics() {
                         Status: <span className={`badge ${isLive ? 'badge-active' : 'badge-completed'}`} style={{ marginLeft: '0.5rem' }}>{trip.status}</span>
                     </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Latest Temp</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, color: currentTemp > 5 ? 'var(--danger)' : 'var(--success)' }}>
-                        {currentTemp !== '--' ? `${currentTemp}°C` : '--'}
+                <div style={{ textAlign: 'right', display: 'flex', gap: '2rem' }}>
+                    <div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Weight Retention</div>
+                        <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {retention}
+                        </div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Latest Temp</div>
+                        <div style={{ fontSize: '2rem', fontWeight: 700, color: currentTemp > 5 ? 'var(--danger)' : 'var(--success)' }}>
+                            {currentTemp !== '--' ? `${currentTemp}°C` : '--'}
+                        </div>
                     </div>
                 </div>
             </div>

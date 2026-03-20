@@ -43,7 +43,7 @@ export default function TripsTable() {
                             <th>Truck ID</th>
                             <th>Direction</th>
                             <th>Date Started</th>
-                            <th>Final Weight (kg)</th>
+                            <th>Weight Delta (start → end)</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -51,20 +51,30 @@ export default function TripsTable() {
                         {trips.length === 0 && (
                             <tr><td colSpan="6" style={{ textAlign: 'center' }}>No trips recorded yet.</td></tr>
                         )}
-                        {trips.map(trip => (
-                            <tr key={trip._id} onClick={() => navigate(`/trip/${trip.trip_id}`)}>
-                                <td style={{ fontWeight: 600 }}>{trip.trip_id}</td>
-                                <td style={{ color: 'var(--accent-cyan)' }}>{trip.truck_id}</td>
-                                <td>{trip.trip_direction}</td>
-                                <td>{trip.timestamp ? new Date(trip.timestamp).toLocaleString() : '--'}</td>
-                                <td>{trip.weight ? trip.weight.toFixed(2) : '--'}</td>
-                                <td>
-                                    <span className={`badge ${trip.status === 'ACTIVE' ? 'badge-active' : 'badge-completed'}`}>
-                                        {trip.status}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
+                        {trips.map(trip => {
+                            // Graceful Legacy Schema Fallbacks matching for old history
+                            const w1 = trip.weight1 ?? trip.start_weight ?? trip.weight;
+                            const w2 = trip.weight2 ?? trip.end_weight;
+
+                            return (
+                                <tr key={trip._id} onClick={() => navigate(`/trip/${trip.trip_id}`)}>
+                                    <td style={{ fontWeight: 600 }}>{trip.trip_id}</td>
+                                    <td style={{ color: 'var(--accent-cyan)' }}>{trip.truck_id}</td>
+                                    <td>{trip.trip_direction}</td>
+                                    <td>{trip.timestamp ? new Date(trip.timestamp).toLocaleString() : '--'}</td>
+                                    <td>
+                                        {w1 !== undefined && w1 !== null ? Number(w1).toFixed(2) : '--'}kg
+                                        {' → '}
+                                        {w2 !== undefined && w2 !== null ? Number(w2).toFixed(2) : '--'}kg
+                                    </td>
+                                    <td>
+                                        <span className={`badge ${trip.status === 'ACTIVE' ? 'badge-active' : 'badge-completed'}`}>
+                                            {trip.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

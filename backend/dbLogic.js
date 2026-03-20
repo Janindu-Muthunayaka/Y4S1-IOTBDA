@@ -16,9 +16,15 @@ const tripSchema = new mongoose.Schema({
     truck_id: String,
     trip_direction: String, // removing enum to allow 'Complete' and 'TOBEDECLARED'
     timestamp: Date,
-    weight: Number,
+    weight1: Number,
+    weight2: Number,
     status: { type: String, enum: ['ACTIVE', 'COMPLETED'] }
 });
+
+// HARDCORE LOGIC: MongoDB Partial Unique Index
+// This physically forces MongoDB to violently reject any duplicate "ACTIVE" trips for the same truck,
+// making it mathematically impossible for a zombie background process to bypass it.
+tripSchema.index({ truck_id: 1 }, { unique: true, partialFilterExpression: { status: 'ACTIVE' } });
 
 // 2. Sensor Readings Collection (Time-Series)
 const sensorReadingSchema = new mongoose.Schema({
@@ -44,10 +50,19 @@ const SensorData = mongoose.model('SensorData', sensorReadingSchema);
 
 // --- BUSINESS LOGIC CONTROLLERS ---
 
+const gateScanLocks = {};
+
 /**
  * Triggered by Gate sensor verifying a truck checkout/checkin
  */
 async function handleGateScan(truck_id, weight) {
+    if (gateScanLocks[truck_id]) {
+        console.log(`[DB] Ignoring duplicate proxy bounce for ${truck_id}`);
+        return;
+    }
+    gateScanLocks[truck_id] = true;
+    setTimeout(() => { delete gateScanLocks[truck_id]; }, 3000); // 3 seconds hardware debounce
+
     // Check if there is an active trip for this truck
     const activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
 
@@ -55,7 +70,7 @@ async function handleGateScan(truck_id, weight) {
         // Second RFID trap: seal the data record
         // By changing status to COMPLETED, updateSensorData will ignore any further data for this trip
         activeTrip.status = 'COMPLETED';
-        activeTrip.weight = weight;
+        activeTrip.weight2 = weight;
 
         await activeTrip.save();
         console.log(`[DB] Active trip ${activeTrip.trip_id} for truck ${truck_id} sealed (marked as COMPLETED).`);
@@ -82,7 +97,7 @@ async function handleGateScan(truck_id, weight) {
             truck_id,
             trip_direction: direction,
             timestamp,
-            weight,
+            weight1: weight,
             status: 'ACTIVE' // This makes the trip active so updateSensorData will save incoming data
         });
 
@@ -114,7 +129,7 @@ async function startTrip(truck_id) {
         truck_id,
         trip_direction: "INBOUND",
         timestamp,
-        weight: 0, // Inbound weight isn't known until they scan at the destination gate
+        weight1: 0, // Inbound weight isn't known until they scan at the destination gate
         status: "ACTIVE"
     });
     await newTrip.save();
