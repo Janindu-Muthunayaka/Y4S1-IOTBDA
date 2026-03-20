@@ -6,8 +6,8 @@
 #include <ArduinoJson.h>
 
 // ===================== WiFi =====================
-const char* ssid     = "Pixel_5485";
-const char* password = "12344321";
+const char* ssid     = "LOQ7929";
+const char* password = "12345678";
 
 // ===================== MQTT =====================
 const char* mqtt_server = "broker.hivemq.com";

@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+const fetcher = require('./fetcher');
 
 // --- DATABASE CONNECTION ---
 // Update URI to match your local or MongoDB Atlas deployment
-const MONGO_URI = 'mongodb://127.0.0.1:27017/coldchain_logistics';
+const MONGO_URI = 'mongodb+srv://janindumuthunayaka:janindumuthunayaka@clusteriotbda.oj7twy4.mongodb.net/coldchain_logistics';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('[Database] Connected securely to MongoDB.'))
     .catch(err => console.error('[Database] Connection Error:', err));
@@ -46,22 +47,35 @@ const SensorData = mongoose.model('SensorData', sensorReadingSchema);
 /**
  * Triggered by Gate sensor verifying a truck checkout/checkin
  */
-async function handleGateScan(truck_id, weight, direction = "TOBEDECLARED") {
+async function handleGateScan(truck_id, weight) {
     // Check if there is an active trip for this truck
     const activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
 
     if (activeTrip) {
-        // Truck has an active trip -> change status to COMPLETED and trip_direction to "Complete"
+        // Second RFID trap: seal the data record
+        // By changing status to COMPLETED, updateSensorData will ignore any further data for this trip
         activeTrip.status = 'COMPLETED';
-        activeTrip.trip_direction = 'Complete';
         activeTrip.weight = weight;
 
         await activeTrip.save();
-        console.log(`[DB] Active trip ${activeTrip.trip_id} for truck ${truck_id} marked as COMPLETED.`);
+        console.log(`[DB] Active trip ${activeTrip.trip_id} for truck ${truck_id} sealed (marked as COMPLETED).`);
+
+        // Clear the truck's latest data in fetcher to ensure next trip calculation starts fresh
+        if (typeof fetcher.clearTruckData === 'function') {
+            fetcher.clearTruckData(truck_id);
+        }
     } else {
-        // Truck does not have an active trip (only completed ones, or none) -> create a new record
+        // First RFID trap: Create a new record
         const trip_id = `TRIP_${Date.now()}`;
         const timestamp = new Date();
+
+        // Direction logic: based on updated flow
+        // OUTBOUND: Driver presses button to start data -> Scans gate to leave. (Data exists at gate scan)
+        // INBOUND: Driver taps RFID to leave -> Scans gate. Data is sent later. (No data exists at first gate scan)
+        let direction = "INBOUND";
+        if (fetcher.getLatestTruckData(truck_id)) {
+            direction = "OUTBOUND";
+        }
 
         const newTrip = new Trip({
             trip_id,
@@ -69,11 +83,11 @@ async function handleGateScan(truck_id, weight, direction = "TOBEDECLARED") {
             trip_direction: direction,
             timestamp,
             weight,
-            status: 'ACTIVE'
+            status: 'ACTIVE' // This makes the trip active so updateSensorData will save incoming data
         });
 
         await newTrip.save();
-        console.log(`[DB] New ACTIVE Trip ${trip_id} recorded for ${truck_id} via gate scan.`);
+        console.log(`[DB] New ACTIVE Trip ${trip_id} recorded for ${truck_id} via gate scan. Direction: ${direction}`);
 
         // Create blank sensor data document for the newly started trip
         await SensorData.create({
@@ -166,10 +180,28 @@ async function updateSensorData(truck_id, tempData, motionData) {
     }
 }
 
+/**
+ * Returns all trips sorted by newest first
+ */
+async function getAllTrips() {
+    return await Trip.find().sort({ timestamp: -1 });
+}
+
+/**
+ * Returns specific trip details and its associated sensor data
+ */
+async function getTripSensorData(trip_id) {
+    const trip = await Trip.findOne({ trip_id });
+    const sensorData = await SensorData.findOne({ trip_id });
+    return { trip, sensorData };
+}
+
 // Export functions for usage in processor files
 module.exports = {
     handleGateScan,
     startTrip,
     endTrip,
-    updateSensorData
+    updateSensorData,
+    getAllTrips,
+    getTripSensorData
 };
