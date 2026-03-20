@@ -1,203 +1,240 @@
+#include <Wire.h>
+#include <DHT.h>
+#include <MPU6050.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include <DHT.h>
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <Wire.h>
 
-// Configuration
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+// ===================== WiFi =====================
+const char* ssid     = "Pixel_5485";
+const char* password = "12344321";
+
+// ===================== MQTT =====================
 const char* mqtt_server = "broker.hivemq.com";
-const char* truck_id = "Truck01";
+const int   mqtt_port   = 1883;
+const char* mqtt_topic  = "IOTBDATruckOne";
+const char* client_id   = "ESP32_CargoLink_01";
 
-// Pin Definitions
-#define DHTPIN 4
-#define DHTTYPE DHT11
-#define START_BTN 13
-#define END_BTN 12
-#define RED_LED 14
-#define BUZZER 27
-
-// Sensor Objects
-DHT dht(DHTPIN, DHTTYPE);
-Adafruit_MPU6050 mpu;
-
-// Network Objects
-WiFiClient espClient;
+WiFiClient   espClient;
 PubSubClient client(espClient);
 
-// Threshold Constraints
-const float TEMP_THRESHOLD = 2.0;    // Max 2 Celsius allowed
-const float MOTION_THRESHOLD = 0.3;  // +0.3g above baseline resting state
+// ===================== DHT11 =====================
+#define DHTPIN  4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
 
-// Tracking Variables - Temperature (updated every 1 min, pushed every 3 min)
-unsigned long lastTempRead = 0;
-unsigned long lastUpload = 0;
-float tempSum = 0;
-float tempMin = 999.0;
-float tempMax = -999.0;
-int tempReadingsCount = 0;
+// ===================== MPU6050 =====================
+MPU6050 mpu;
 
-// Tracking Variables - Motion (updated rapid)
-float maxAccel = 0;
-bool harshEventDetected = false;
+// ===================== PINS =====================
+#define TEMP_LED_PIN   2
+#define SHOCK_LED_PIN  18
+#define BUTTON_PIN     15
 
-// System State
-bool tripActive = false;
+// ===================== TRIP STATE =====================
+const String truckID = "C3809540";
+bool   tripStarted   = false;
+String tripID        = "TRIP-001";
 
-void setup_wifi() {
-  delay(10);
+// ===================== BUTTON DEBOUNCE =====================
+int           lastButtonReading = HIGH;
+int           buttonState       = HIGH;
+unsigned long lastDebounceTime  = 0;
+const unsigned long debounceDelay = 50;
+
+// ===================== TIMING =====================
+unsigned long lastPublishTime     = 0;
+const unsigned long publishInterval = 2000; // One combined publish every 2s
+
+// ===================== LATEST SENSOR VALUES =====================
+// Stored globally so both sensors feed into one single publish
+float latestSimTemp    = 0.0;
+bool  latestTempAlert  = false;
+float latestShockG     = 0.0;
+bool  latestShockAlert = false;
+
+// ===================== TEMPERATURE SIMULATION =====================
+float REAL_TEMP_MIN  = 26.0;
+float REAL_TEMP_MAX  = 30.0;
+float SIM_TEMP_MIN   = -2.0;
+float SIM_TEMP_MAX   =  6.0;
+float SAFE_TEMP_LOW  = -2.0;
+float SAFE_TEMP_HIGH =  4.0;
+
+// ===================== SHOCK THRESHOLD =====================
+float SHOCK_THRESHOLD = 0.1;
+
+// ===================== HELPER =====================
+float mapFloat(float x, float in_min, float in_max,
+               float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) /
+         (in_max - in_min) + out_min;
+}
+
+// ===================== WiFi =====================
+void setupWiFi() {
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(ssid);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { 
-    delay(500); 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi Connected");
+  Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
 }
 
-void reconnect() {
+// ===================== MQTT RECONNECT =====================
+void reconnectMQTT() {
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    String clientId = "ESP32Truck-";
-    clientId += String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
+    Serial.print("Connecting to MQTT broker...");
+    if (client.connect(client_id)) {
+      Serial.println("connected!");
     } else {
-      Serial.print("failed, rc=");
+      Serial.print("failed rc=");
       Serial.print(client.state());
-      delay(5000);
+      Serial.println(" — retrying in 3s");
+      delay(3000);
     }
   }
 }
 
+// ===================== SINGLE COMBINED PUBLISH =====================
+void publishCombined() {
+  StaticJsonDocument<256> doc;
+  doc["truck_id"]    = truckID;
+  doc["trip_id"]     = tripID;
+  doc["temperature"] = round(latestSimTemp * 100.0) / 100.0;
+  doc["shock_g"]     = round(latestShockG  * 100.0) / 100.0;
+  doc["temp_alert"]  = latestTempAlert;
+  doc["shock_alert"] = latestShockAlert;
+  doc["timestamp"]   = millis();
+
+  char payload[256];
+  serializeJson(doc, payload);
+
+  if (!client.connected()) reconnectMQTT();
+  if (client.publish(mqtt_topic, payload)) {
+    Serial.println("Published: " + String(payload));
+  } else {
+    Serial.println("Publish FAILED!");
+  }
+}
+
+// ===================== READ TEMPERATURE =====================
+void readTemperature() {
+  float realTemp = dht.readTemperature();
+  if (isnan(realTemp)) {
+    Serial.println("Error: DHT11 read failed!");
+    digitalWrite(TEMP_LED_PIN, HIGH);
+    return;
+  }
+
+  latestSimTemp  = mapFloat(realTemp,
+                            REAL_TEMP_MIN, REAL_TEMP_MAX,
+                            SIM_TEMP_MIN,  SIM_TEMP_MAX);
+  latestTempAlert = (latestSimTemp > SAFE_TEMP_HIGH ||
+                     latestSimTemp < SAFE_TEMP_LOW);
+
+  digitalWrite(TEMP_LED_PIN, latestTempAlert ? HIGH : LOW);
+
+  Serial.println("Temp | Room: "    + String(realTemp)      + "C" +
+                 "  Simulated: "    + String(latestSimTemp)  + "C" +
+                 "  Alert: "        + String(latestTempAlert));
+}
+
+// ===================== READ SHOCK =====================
+void readShock() {
+  int16_t ax, ay, az, gx, gy, gz;
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+  float accelX = ax / 16384.0;
+  float accelY = ay / 16384.0;
+  float accelZ = az / 16384.0;
+  float total  = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
+
+  latestShockG     = abs(total - 1.0);
+  latestShockAlert = (latestShockG > SHOCK_THRESHOLD);
+
+  digitalWrite(SHOCK_LED_PIN, latestShockAlert ? HIGH : LOW);
+
+  Serial.println("Shock | G: " + String(latestShockG) +
+                 "  Alert: "   + String(latestShockAlert));
+}
+
+// ===================== BUTTON =====================
+// Simple toggle: press = start, press again = end
+void handleButton() {
+  int reading = digitalRead(BUTTON_PIN);
+
+  if (reading != lastButtonReading) lastDebounceTime = millis();
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (reading != buttonState) {
+      buttonState = reading;
+
+      if (buttonState == LOW) {
+        tripStarted = !tripStarted;
+
+        if (tripStarted) {
+          lastPublishTime = 0; // Publish immediately on start
+          Serial.println("======================================");
+          Serial.println("TRIP STARTED | ID: " + tripID);
+          Serial.println("Truck ID    : " + truckID);
+          Serial.println("======================================");
+        } else {
+          Serial.println("======================================");
+          Serial.println("TRIP ENDED  | ID: " + tripID);
+          Serial.println("======================================");
+          digitalWrite(TEMP_LED_PIN,  LOW);
+          digitalWrite(SHOCK_LED_PIN, LOW);
+        }
+      }
+    }
+  }
+
+  lastButtonReading = reading;
+}
+
+// ===================== SETUP =====================
 void setup() {
   Serial.begin(115200);
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
+  delay(2000);
 
-  // Initialize Sensors
   dht.begin();
-  if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip - Check wiring!");
-  }
-  
-  // Pin Configurations
-  pinMode(START_BTN, INPUT_PULLUP);
-  pinMode(END_BTN, INPUT_PULLUP);
-  pinMode(RED_LED, OUTPUT);
-  pinMode(BUZZER, OUTPUT);
-  
-  alarmOff(); // Ensure alarms are clear
-  Serial.println("Truck Node Initialized.");
+  Wire.begin(21, 22);
+  mpu.initialize();
+
+  pinMode(TEMP_LED_PIN,  OUTPUT);
+  pinMode(SHOCK_LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN,    INPUT_PULLUP);
+
+  digitalWrite(TEMP_LED_PIN,  LOW);
+  digitalWrite(SHOCK_LED_PIN, LOW);
+
+  setupWiFi();
+  client.setServer(mqtt_server, mqtt_port);
+
+  Serial.println("======================================");
+  Serial.println(" Smart Fish Transportation Monitoring ");
+  Serial.println(" Truck ID: " + truckID);
+  Serial.println(" Press button to START trip.");
+  Serial.println("======================================");
 }
 
-void alarmTrigger() {
-  digitalWrite(RED_LED, HIGH);
-  digitalWrite(BUZZER, HIGH);
-}
-
-void alarmOff() {
-  digitalWrite(RED_LED, LOW);
-  digitalWrite(BUZZER, LOW);
-}
-
+// ===================== LOOP =====================
 void loop() {
-  if (!client.connected()) reconnect();
+  if (!client.connected()) reconnectMQTT();
   client.loop();
 
-  unsigned long currentMillis = millis();
+  handleButton();
 
-  // --- TRIP START BUTTON ---
-  if (digitalRead(START_BTN) == LOW) {
-    tripActive = true;
-    DynamicJsonDocument doc(256);
-    doc["type"] = "trip_start";
-    doc["truck_id"] = truck_id;
-    char buffer[256];
-    serializeJson(doc, buffer);
-    client.publish("IOTBDATruckOne", buffer);
-    Serial.println("Trip Started!");
-    delay(1000); // Debounce
-  }
-
-  // --- TRIP END BUTTON ---
-  if (digitalRead(END_BTN) == LOW) {
-    tripActive = false;
-    alarmOff(); // Reset physical alarms
-    
-    DynamicJsonDocument doc(256);
-    doc["type"] = "trip_end";
-    doc["truck_id"] = truck_id;
-    char buffer[256];
-    serializeJson(doc, buffer);
-    client.publish("IOTBDATruckOne", buffer);
-    Serial.println("Trip Ended!");
-    delay(1000); // Debounce
-  }
-
-  // If truck isn't on a trip, we don't need to sample/alarm
-  if (!tripActive) return; 
-
-  // --- MOTION SAMPLING (Runs continually) ---
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
-  
-  // Calculate total acceleration magnitude in g (9.81 m/s^2 = 1g)
-  float currentAccel = sqrt(sq(a.acceleration.x) + sq(a.acceleration.y) + sq(a.acceleration.z)) / 9.81;
-  // Subtracting static gravity baseline to get 'shock' variance (baseline should be approx 1.0)
-  float deltaG = abs(currentAccel - 1.0); 
-
-  if (deltaG > maxAccel) maxAccel = deltaG;
-  
-  // Instant Warning!
-  if (deltaG > MOTION_THRESHOLD) {
-    harshEventDetected = true;
-    alarmTrigger();
-  }
-
-  // --- TEMPERATURE SAMPLING (Every 1 minute = 60000 ms) ---
-  if (currentMillis - lastTempRead >= 60000) {
-    lastTempRead = currentMillis;
-    float t = dht.readTemperature();
-    
-    if (!isnan(t)) {
-      if (t > TEMP_THRESHOLD) alarmTrigger(); // Instant Warning!
-      
-      tempSum += t;
-      tempReadingsCount++;
-      if (t < tempMin) tempMin = t;
-      if (t > tempMax) tempMax = t;
+  if (tripStarted) {
+    unsigned long now = millis();
+    if (now - lastPublishTime >= publishInterval) {
+      lastPublishTime = now;
+      readTemperature(); // Updates latestSimTemp + latestTempAlert
+      readShock();       // Updates latestShockG  + latestShockAlert
+      publishCombined(); // ONE single message with both values
     }
-  }
-
-  // --- DATA UPLOAD (Every 3 minutes = 180000 ms) ---
-  if (currentMillis - lastUpload >= 180000) {
-    lastUpload = currentMillis;
-    
-    float avgTemp = tempReadingsCount > 0 ? (tempSum / tempReadingsCount) : 0;
-    
-    DynamicJsonDocument doc(512);
-    doc["type"] = "sensor_data";
-    doc["truck_id"] = truck_id;
-    
-    JsonObject temperature = doc.createNestedObject("temperature");
-    temperature["avg"] = avgTemp;
-    temperature["min"] = tempMin == 999.0 ? 0 : tempMin;
-    temperature["max"] = tempMax == -999.0 ? 0 : tempMax;
-    
-    JsonObject motion = doc.createNestedObject("motion");
-    motion["max_accel"] = maxAccel;
-    motion["harsh_event"] = harshEventDetected;
-
-    char buffer[512];
-    serializeJson(doc, buffer);
-    client.publish("IOTBDATruckOne", buffer);
-    Serial.println("Uploaded 3-minute summary.");
-
-    // Reset aggregation tracking vars for next 3 minutes
-    tempSum = 0; tempMin = 999.0; tempMax = -999.0; tempReadingsCount = 0;
-    maxAccel = 0; harshEventDetected = false;
   }
 }
