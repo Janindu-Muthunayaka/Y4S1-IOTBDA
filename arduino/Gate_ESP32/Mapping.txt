@@ -17,10 +17,10 @@
 ╠════════════════╦══════════════╦══════════════════════════════╣
 ║  HX711 PIN     ║  ESP32 PIN   ║  NOTES                       ║
 ╠════════════════╬══════════════╬══════════════════════════════╣
-║  DOUT          ║  GPIO 32     ║  Data Out (LOADCELL_DOUT)    ║
+║  GND           ║  GND         ║  Common Ground               ║
+║  DOUT          ║  GPIO 32     ║  Data Out (LOADCELL_DOUT)    ║    
 ║  SCK (PD_SCK)  ║  GPIO 4      ║  Clock    (LOADCELL_SCK)     ║
 ║  VCC           ║  3.3V / 5V   ║  Both voltages supported     ║
-║  GND           ║  GND         ║  Common Ground               ║
 ╠════════════════╩══════════════╩══════════════════════════════╣
 ║  LOAD CELL → HX711                                           ║
 ╠════════════════╦══════════════╦══════════════════════════════╣
@@ -28,6 +28,6 @@
 ╠════════════════╬══════════════╬══════════════════════════════╣
 ║  Excitation +  ║  E+          ║  Red                         ║
 ║  Excitation -  ║  E-          ║  Black                       ║
-║  Signal +      ║  A+          ║  Green / White               ║
-║  Signal -      ║  A-          ║  White / Green               ║
+║  Signal -      ║  A-          ║  White / G                   ║
+║  Signal +      ║  A+          ║  Green / W                   ║
 ╚════════════════╩══════════════╩══════════════════════════════╝

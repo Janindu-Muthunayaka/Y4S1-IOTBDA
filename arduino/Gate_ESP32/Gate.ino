@@ -15,8 +15,8 @@ const int LOADCELL_DOUT_PIN = 32;
 const int LOADCELL_SCK_PIN  = 4;
 
 // --- Network & MQTT ---
-const char* ssid = "Thassaraz";
-const char* password = "123456789";
+const char* ssid = "LOQ7929";
+const char* password = "12345678";
 const char* mqtt_server = "broker.hivemq.com";
 
 WiFiClient espClient;
@@ -26,8 +26,8 @@ PubSubClient client(espClient);
 const float minimumUploadValue = 0.0; // grams. Only send to broker if weight > this value.
 
 // --- HX711 Tuning ---
-const float DIVIDER   = 230.0;
-const float OFFSET    = 0.0;
+const float DIVIDER   = -23.0;
+const float OFFSET    = 0;
 const float ZERO_BAND = 5.0;  // snap to 0 if within ±5g
 
 // --- RFID Setup ---
@@ -56,6 +56,8 @@ void setup_wifi() {
 
 void reconnect() {
   while (!client.connected() && WiFi.status() == WL_CONNECTED) {
+    Serial.print("WiFi IP: ");
+    Serial.println(WiFi.localIP());
     Serial.print("Attempting MQTT connection...");
     String clientId = "ESP32Gate-";
     clientId += String(random(0xffff), HEX);
@@ -78,6 +80,14 @@ void setup() {
   // Init WiFi
   setup_wifi();
   client.setServer(mqtt_server, 1883);
+
+  IPAddress brokerIP;
+  if (WiFi.hostByName(mqtt_server, brokerIP)) {
+    Serial.print("Broker resolved to: ");
+    Serial.println(brokerIP);
+  } else {
+    Serial.println("DNS resolution FAILED");
+  }
 
   // Init RFID
   mfrc522.PCD_Init();

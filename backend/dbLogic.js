@@ -13,7 +13,7 @@ mongoose.connect(MONGO_URI)
 const tripSchema = new mongoose.Schema({
     trip_id: String,
     truck_id: String,
-    trip_direction: { type: String, enum: ['OUTBOUND', 'INBOUND'] },
+    trip_direction: String, // removing enum to allow 'Complete' and 'TOBEDECLARED'
     timestamp: Date,
     weight: Number,
     status: { type: String, enum: ['ACTIVE', 'COMPLETED'] }
@@ -46,30 +46,36 @@ const SensorData = mongoose.model('SensorData', sensorReadingSchema);
 /**
  * Triggered by Gate sensor verifying a truck checkout/checkin
  */
-async function handleGateScan(truck_id, weight, direction = "OUTBOUND") {
-    // We base trip IDs on timestamp for reliable uniqueness without collisions
-    const trip_id = `TRIP_${Date.now()}`;
-    const timestamp = new Date();
+async function handleGateScan(truck_id, weight, direction = "TOBEDECLARED") {
+    // Check if there is an active trip for this truck
+    const activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
 
-    // Status is relative to direction:
-    // Outbound -> Active (Driving to retail)
-    // Inbound -> Completed (Returned home to logistics warehouse)
-    const status = direction === "OUTBOUND" ? "ACTIVE" : "COMPLETED";
+    if (activeTrip) {
+        // Truck has an active trip -> change status to COMPLETED and trip_direction to "Complete"
+        activeTrip.status = 'COMPLETED';
+        activeTrip.trip_direction = 'Complete';
+        activeTrip.weight = weight;
 
-    const newTrip = new Trip({
-        trip_id,
-        truck_id,
-        trip_direction: direction,
-        timestamp,
-        weight,
-        status
-    });
+        await activeTrip.save();
+        console.log(`[DB] Active trip ${activeTrip.trip_id} for truck ${truck_id} marked as COMPLETED.`);
+    } else {
+        // Truck does not have an active trip (only completed ones, or none) -> create a new record
+        const trip_id = `TRIP_${Date.now()}`;
+        const timestamp = new Date();
 
-    await newTrip.save();
-    console.log(`[DB] Trip ${trip_id} recorded for ${truck_id} via gate scan.`);
+        const newTrip = new Trip({
+            trip_id,
+            truck_id,
+            trip_direction: direction,
+            timestamp,
+            weight,
+            status: 'ACTIVE'
+        });
 
-    // If Outbound, we generate a fresh sensor tracking payload Document
-    if (direction === "OUTBOUND") {
+        await newTrip.save();
+        console.log(`[DB] New ACTIVE Trip ${trip_id} recorded for ${truck_id} via gate scan.`);
+
+        // Create blank sensor data document for the newly started trip
         await SensorData.create({
             trip_id,
             truck_id,
