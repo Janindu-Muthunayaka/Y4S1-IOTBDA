@@ -3,7 +3,8 @@ const fetcher = require('./fetcher');
 
 // --- DATABASE CONNECTION ---
 // Update URI to match your local or MongoDB Atlas deployment
-const MONGO_URI = 'mongodb+srv://janindumuthunayaka:janindumuthunayaka@clusteriotbda.oj7twy4.mongodb.net/coldchain_logistics';
+//const MONGO_URI = 'mongodb+srv://janindumuthunayaka:janindumuthunayaka@clusteriotbda.oj7twy4.mongodb.net/coldchain_logistics';
+const MONGO_URI = 'mongodb://janindumuthunayaka:janindumuthunayaka@ac-hlhiljp-shard-00-00.oj7twy4.mongodb.net:27017,ac-hlhiljp-shard-00-01.oj7twy4.mongodb.net:27017,ac-hlhiljp-shard-00-02.oj7twy4.mongodb.net:27017/coldchain_logistics?ssl=true&replicaSet=atlas-ingym5-shard-0&authSource=admin&appName=ClusterIOTBDA';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('[Database] Connected securely to MongoDB.'))
     .catch(err => console.error('[Database] Connection Error:', err));
