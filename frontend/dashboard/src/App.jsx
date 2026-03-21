@@ -6,12 +6,13 @@ import QAInspectorA from './components/QAInspectorA';
 import DriverDashboard from './components/DriverDashboard';
 import OwnerDashboard from './components/OwnerDashboard';
 import RetailerDashboard from './components/RetailerDashboard';
+import QAInspectorB from './components/QAInspectorB';
 
 function Sidebar() {
   const location = useLocation();
 
   // Hide sidebar on specialized views that have their own full-screen layouts
-  if (location.pathname === '/driver') return null;
+  if (location.pathname === '/driver' || location.pathname.startsWith('/qa-b')) return null;
 
   return (
     <div style={{ width: '240px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -38,7 +39,7 @@ function Sidebar() {
 function MainLayout() {
    const location = useLocation();
    // The mockup for QA Inspector matches its own layout, but driver is specifically full-screen
-   const isQa = location.pathname === '/qa';
+   const isQa = location.pathname === '/qa' || location.pathname.startsWith('/qa-b');
    const isDriver = location.pathname === '/driver';
    const isOwner = location.pathname === '/owner';
    const isRetailer = location.pathname === '/retailer';
@@ -47,13 +48,14 @@ function MainLayout() {
    return (
     <div style={{ display: 'flex', minHeight: '100vh', width: '100%', justifyContent: isDriver ? 'center' : 'flex-start' }}>
       <Sidebar />
-      <div style={{ flex: 1, overflowX: 'auto', display: 'flex', flexDirection: 'column', padding: isDriver ? 0 : undefined }}>
+      <div style={{ flex: 1, overflowX: 'auto', display: 'flex', flexDirection: 'column', padding: (isDriver || location.pathname.startsWith('/qa-b')) ? 0 : undefined }}>
         {!isSpecialFull && <h1 className="header-title" style={{ marginTop: '2rem' }}>Cold-Chain Logistics Nexus</h1>}
         <div className={!isSpecialFull ? "dashboard-container" : ""} style={!isSpecialFull ? { paddingTop: 0 } : { flex: 1, display: 'flex' }}>
           <Routes>
             <Route path="/" element={<TripsTable />} />
             <Route path="/trip/:id" element={<TripAnalytics />} />
             <Route path="/qa" element={<QAInspectorA />} />
+            <Route path="/qa-b/:id" element={<QAInspectorB />} />
             <Route path="/driver" element={<DriverDashboard />} />
             <Route path="/owner" element={<OwnerDashboard />} />
             <Route path="/retailer" element={<RetailerDashboard />} />

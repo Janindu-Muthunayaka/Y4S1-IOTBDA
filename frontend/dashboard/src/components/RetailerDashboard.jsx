@@ -67,11 +67,11 @@ export default function RetailerDashboard() {
   let maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
   
   // Starting and delivered weight logic
-  const w1 = selectedTrip.weight1 || selectedTrip.start_weight || 1000;
-  const w2 = selectedTrip.weight2 || selectedTrip.end_weight || 0;
+  const w1 = selectedTrip.weight1 ?? selectedTrip.start_weight ?? selectedTrip.weight ?? '--';
+  const w2 = selectedTrip.weight2 ?? selectedTrip.end_weight ?? '--';
   const hasEnded = selectedTrip.status === 'COMPLETED';
   const deliveredWeight = hasEnded ? w2 : w1;
-  const weightLossPercentage = w1 > 0 ? (((w1 - deliveredWeight) / w1) * 100).toFixed(1) : 0;
+  const weightLossPercentage = (w1 !== '--' && deliveredWeight !== '--' && w1 > 0) ? (((w1 - deliveredWeight) / w1) * 100).toFixed(1) : '--';
   
   // Dynamic Quality Score
   let qualityScore = 100;
@@ -226,7 +226,7 @@ export default function RetailerDashboard() {
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>Out of {w1} kg total loaded</div>
           
           <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(deliveredWeight / w1) * 100}%`, background: 'var(--accent-cyan)', borderRadius: '16px' }}></div>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: w1 !== '--' ? `${(deliveredWeight / w1) * 100}%` : '0%', background: 'var(--accent-cyan)', borderRadius: '16px' }}></div>
           </div>
         </div>
 
@@ -318,17 +318,17 @@ export default function RetailerDashboard() {
                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{deliveredWeight} kg</span>
                      </div>
                      <div style={{ height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', position: 'relative' }}>
-                         <div style={{ width: `${(deliveredWeight / w1) * 100}%`, height: '100%', background: 'var(--success)', borderRadius: '4px' }}></div>
+                         <div style={{ width: w1 !== '--' ? `${(deliveredWeight / w1) * 100}%` : '0%', height: '100%', background: 'var(--success)', borderRadius: '4px' }}></div>
                      </div>
                  </div>
 
                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                      <div>ℹ️</div>
                      <div>
-                         {weightLossPercentage}% weight loss detected during transit. 
-                         {Number(weightLossPercentage) <= 3 
+                         {weightLossPercentage !== '--' ? `${weightLossPercentage}% weight loss detected during transit.` : 'Weight data not available to calculate loss.'}
+                         {weightLossPercentage !== '--' && Number(weightLossPercentage) <= 3 
                               ? <span style={{ color: 'var(--success)', display: 'block', marginTop: '4px' }}>This is within acceptable limits (≤ 3%).</span> 
-                              : <span style={{ color: 'var(--danger)', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>This EXCEEDS acceptable loss thresholds!</span>}
+                              : weightLossPercentage !== '--' ? <span style={{ color: 'var(--danger)', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>This EXCEEDS acceptable loss thresholds!</span> : null}
                      </div>
                  </div>
 

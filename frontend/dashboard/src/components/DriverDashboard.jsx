@@ -18,8 +18,8 @@ export default function DriverDashboard() {
                 const { data } = await axios.get(`${API_BASE}/api/trips`);
                 if (Array.isArray(data)) {
                     setTrips(data);
-                    if (data.length > 0 && !selectedTripId) {
-                        setSelectedTripId(data[0].trip_id);
+                    if (data.length > 0) {
+                        setSelectedTripId(prev => prev || data[0].trip_id);
                     }
                 }
             } catch (err) { console.error(err); }
@@ -94,9 +94,17 @@ export default function DriverDashboard() {
             
             {/* Header */}
             <div style={{ padding: '2rem 1.5rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 500 }}>Driver Mode</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.25rem' }}>Dashboard</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div 
+                        onClick={() => navigate('/')} 
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                    >
+                        ←
+                    </div>
+                    <div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 500 }}>Driver Mode</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.25rem' }}>Dashboard</div>
+                    </div>
                 </div>
                 <select 
                     className="glass-card" 

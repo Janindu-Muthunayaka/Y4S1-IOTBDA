@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -11,6 +12,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 const API_BASE = 'http://localhost:3001';
 
 export default function QAInspectorA() {
+    const navigate = useNavigate();
     const [trips, setTrips] = useState([]);
     const [selectedTripId, setSelectedTripId] = useState('');
     const [sensorData, setSensorData] = useState(null);
@@ -22,8 +24,8 @@ export default function QAInspectorA() {
                 const { data } = await axios.get(`${API_BASE}/api/trips`);
                 if (Array.isArray(data)) {
                     setTrips(data);
-                    if (data.length > 0 && !selectedTripId) {
-                        setSelectedTripId(data[0].trip_id);
+                    if (data.length > 0) {
+                        setSelectedTripId(prev => prev || data[0].trip_id);
                     }
                 }
             } catch (err) { console.error(err); }
@@ -172,14 +174,24 @@ export default function QAInspectorA() {
 
                     {/* Charts */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Temperature Trend</h3>
+                        <div 
+                            className="glass-card" 
+                            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform 0.2s' }}
+                            onClick={() => selectedTripId && navigate(`/qa-b/${selectedTripId}`)}
+                            title="Click for detailed view"
+                        >
+                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Temperature Trend (Click for Details)</h3>
                             <div style={{ height: '250px' }}>
                                 <Line data={tempChartData} options={{ responsive: true, maintainAspectRatio: false }} />
                             </div>
                         </div>
-                        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Shock & Movement</h3>
+                        <div 
+                            className="glass-card" 
+                            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform 0.2s' }}
+                            onClick={() => selectedTripId && navigate(`/qa-b/${selectedTripId}`)}
+                            title="Click for detailed view"
+                        >
+                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: 'var(--text-secondary)' }}>Shock & Movement (Click for Details)</h3>
                             <div style={{ height: '250px' }}>
                                 <Line data={shockChartData} options={{ responsive: true, maintainAspectRatio: false }} />
                             </div>
