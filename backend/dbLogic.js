@@ -62,20 +62,12 @@ async function handleGateScan(truck_id, weight) {
         return;
     }
     gateScanLocks[truck_id] = true;
-    setTimeout(() => { delete gateScanLocks[truck_id]; }, 10000); // 10 seconds hardware debounce
+    setTimeout(() => { delete gateScanLocks[truck_id]; }, 5000); // 5 seconds hardware debounce
 
     // Check if there is an active trip for this truck
     const activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
 
     if (activeTrip) {
-        // Enforce hard 15-second minimum duration for testing and real trips
-        // This stops "Card then Button" instant-completion bugs.
-        const durationMs = Date.now() - new Date(activeTrip.timestamp).getTime();
-        if (durationMs < 15000) {
-            console.log(`[DB] ⚠️ Ignored Gate Scan to close ${activeTrip.trip_id}: Trip existed for only ${Math.round(durationMs/1000)}s (Must be >15s)`);
-            return;
-        }
-
         // Second RFID trap: seal the data record
         // By changing status to COMPLETED, updateSensorData will ignore any further data for this trip
         activeTrip.status = 'COMPLETED';
@@ -102,14 +94,14 @@ async function handleGateScan(truck_id, weight) {
         let recentSensorFound = false;
         const now = Date.now();
         
-        let evaluationLog = `[DB] Evaluated OUTBOUND rule (5s limit):`;
+        let evaluationLog = `[DB] Evaluated OUTBOUND rule (10s limit):`;
         let foundAny = false;
         
         for (const tid in timestamps) {
             foundAny = true;
             const diffSecs = ((now - timestamps[tid]) / 1000).toFixed(2);
             evaluationLog += ` | ESP32 [${tid}] pinged ${diffSecs}s ago`;
-            if (now - timestamps[tid] <= 5000) {
+            if (now - timestamps[tid] <= 10000) {  // 10 seconds check
                 recentSensorFound = true;
             }
         }
