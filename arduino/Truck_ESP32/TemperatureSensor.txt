@@ -1,0 +1,46 @@
+╔══════════════════════════════════════════════════════════════╗
+║                 DHT11 TEMPERATURE SENSOR → ESP32            ║
+╠══════════════════════════════════════════════════════════════╣
+║  SENSOR PIN    ║  ESP32 PIN   ║  NOTES                      ║
+╠════════════════╬══════════════╬═════════════════════════════╣
+║  VCC           ║  3.3V / 5V   ║  Module dependent           ║
+║  GND           ║  GND         ║  Common Ground              ║
+║  DATA          ║  GPIO 4      ║  DHTPIN in Truck_ESP32.ino ║
+╚════════════════╩══════════════╩═════════════════════════════╝
+
+Used in code:
+- Sensor type: DHT11
+- Data pin    : GPIO 4
+
+Code snippet:
+
+#include <DHT.h>
+
+#define DHTPIN  4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+}
+
+void loop() {
+  float tempC = dht.readTemperature();
+
+  if (isnan(tempC)) {
+    Serial.println("Error: DHT11 read failed!");
+    delay(1000);
+    return;
+  }
+
+  Serial.print("Temperature: ");
+  Serial.print(tempC);
+  Serial.println(" C");
+
+  delay(2000);
+}
+
+Notes:
+- In this project, the firmware maps room temperature to simulated cold-chain values.
+- If readings are unstable, add a pull-up resistor (around 10k) from DATA to VCC when using bare DHT11 sensors.

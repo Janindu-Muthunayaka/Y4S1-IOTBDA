@@ -1,0 +1,75 @@
+╔══════════════════════════════════════════════════════════════╗
+║               MPU6050 ACCELEROMETER → ESP32 (I2C)          ║
+╠══════════════════════════════════════════════════════════════╣
+║  SENSOR PIN    ║  ESP32 PIN   ║  NOTES                      ║
+╠════════════════╬══════════════╬═════════════════════════════╣
+║  VCC           ║  3.3V / 5V   ║  Module dependent           ║
+║  GND           ║  GND         ║  Common Ground              ║
+║  SDA           ║  GPIO 21     ║  I2C Data                   ║
+║  SCL           ║  GPIO 22     ║  I2C Clock                  ║
+╚════════════════╩══════════════╩═════════════════════════════╝
+
+Used in code:
+- I2C SDA pin : GPIO 21
+- I2C SCL pin : GPIO 22
+- Shock metric: abs(total_g - 1.0)
+- Alert threshold: 0.1 g
+
+Code snippet:
+
+#include <Wire.h>
+#include <MPU6050.h>
+
+MPU6050 mpu;
+
+void setup() {
+  Serial.begin(115200);
+
+  // Same I2C pins as Truck_ESP32.ino
+  Wire.begin(21, 22);
+  mpu.initialize();
+}
+
+void loop() {
+  int16_t ax, ay, az, gx, gy, gz;
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+  float accelX = ax / 16384.0;
+  float accelY = ay / 16384.0;
+  float accelZ = az / 16384.0;
+  float totalG = sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
+  float shockG = abs(totalG - 1.0);
+
+  Serial.print("Shock G: ");
+  Serial.println(shockG, 3);
+
+  delay(500);
+}
+
+  How the final shock value is calculated:
+  1) Read raw accelerometer values from MPU6050
+    - ax, ay, az (signed 16-bit raw values)
+
+  2) Convert raw values to g-units (default +/-2g scale)
+    - accelX = ax / 16384.0
+    - accelY = ay / 16384.0
+    - accelZ = az / 16384.0
+
+  3) Compute total acceleration magnitude
+    - totalG = sqrt(accelX^2 + accelY^2 + accelZ^2)
+
+  4) Remove normal gravity baseline (1g)
+    - shockG = abs(totalG - 1.0)
+
+  5) Compare against threshold for alert
+    - shockAlert = (shockG > 0.1)
+
+  Quick example:
+  - If accelX=0.20, accelY=0.10, accelZ=1.05
+  - totalG = sqrt(0.20^2 + 0.10^2 + 1.05^2) = 1.073
+  - shockG = abs(1.073 - 1.0) = 0.073 g
+  - 0.073 <= 0.1, so alert = false
+
+Notes:
+- Most ESP32 + MPU6050 boards work well on I2C at 3.3V logic.
+- If your board has AD0 pin, leave it LOW for default I2C address 0x68.
