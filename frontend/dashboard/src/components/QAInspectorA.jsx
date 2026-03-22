@@ -61,17 +61,25 @@ export default function QAInspectorA() {
     const w1 = tripDetails?.weight1 ?? tripDetails?.start_weight ?? tripDetails?.weight ?? '--';
     const w2 = tripDetails?.weight2 ?? tripDetails?.end_weight ?? '--';
 
-    const isOutbound = tripDetails?.trip_direction !== 'INBOUND';
-    const step1Label = isOutbound ? "Warehouse (RFID Leave)" : "Pick-up (Button)";
-    const step2Label = "In Transit (Sensors)";
-    const step3Label = isOutbound ? "Retail Delivery" : "Warehouse (RFID Arrive)";
+    // Formatter
+    const fmtT = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+
+    const isOutbound = tripDetails?.trip_direction === 'OUTBOUND';
+    const step1Label = "Left Warehouse";
+    const step2Label = isOutbound ? "At Customer" : "At Supplier";
+    const step3Label = "Entered Warehouse";
+
+    const time1 = fmtT(tripDetails?.timestamp);
+    const tempsArr = sensorData?.temperature_data || [];
+    const time2 = tempsArr.length > 0 ? (isOutbound ? tempsArr[tempsArr.length - 1].time : tempsArr[0].time) : '--:--';
+    const time3 = tripDetails?.status === 'COMPLETED' ? fmtT(sensorData?.last_updated || tripDetails?.updatedAt) : '--:--';
 
     if (sensorData) {
         const temps = sensorData.temperature_data || [];
         const motions = sensorData.motion_data || [];
         if (temps.length > 0) {
             currentTemp = temps[temps.length - 1].avg;
-            const violations = temps.filter(t => t.avg > 5).length;
+            const violations = temps.filter(t => t.avg > -18).length;
             tempCompliance = Math.max(0, 100 - (violations / temps.length * 100));
         }
         shockEvents = motions.filter(m => m.max_accel > 0.5).length;
@@ -91,8 +99,8 @@ export default function QAInspectorA() {
                 tension: 0.4, fill: true,
             },
             {
-                label: 'Threshold (5°C)',
-                data: labels.map(() => 5.0),
+                label: 'Threshold (-18°C)',
+                data: labels.map(() => -18.0),
                 borderColor: '#ef4444',
                 borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false,
             }
@@ -125,6 +133,7 @@ export default function QAInspectorA() {
                 <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
                     <div><span style={{ color: 'var(--text-secondary)' }}>Truck ID:</span> <span style={{ fontWeight: 600 }}>{tripDetails?.truck_id || '--'}</span></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>Trip ID:</span> <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>#{tripDetails?.trip_id || '--'}</span></div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>Dir:</span> <span style={{ fontWeight: 600 }}>{tripDetails?.trip_direction || '--'}</span></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>Status:</span> <span className={`badge ${tripDetails?.status === 'ACTIVE' ? 'badge-active' : 'badge-completed'}`}>{tripDetails?.status || '--'}</span></div>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
@@ -222,15 +231,18 @@ export default function QAInspectorA() {
                                 <div style={{ position: 'absolute', top: '10px', left: '10%', right: '10%', height: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
                                 <div style={{ zIndex: 1, textAlign: 'center' }}>
                                     <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-dark)', border: '2px solid var(--accent-cyan)', margin: '0 auto 0.5rem auto' }}></div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>{step1Label}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>{step1Label}</div>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{time1}</div>
                                 </div>
                                 <div style={{ zIndex: 1, textAlign: 'center' }}>
                                     <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-dark)', border: shockEvents > 0 ? '2px solid var(--danger)' : '2px solid var(--accent-purple)', margin: '0 auto 0.5rem auto' }}></div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>{step2Label}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>{step2Label}</div>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{time2}</div>
                                 </div>
                                 <div style={{ zIndex: 1, textAlign: 'center' }}>
                                     <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: tripDetails?.status === 'COMPLETED' ? 'var(--bg-dark)' : 'var(--bg-dark)', border: tripDetails?.status === 'COMPLETED' ? '2px solid var(--success)' : '2px solid var(--border-color)', margin: '0 auto 0.5rem auto' }}></div>
-                                    <div style={{ fontSize: '0.75rem', color: tripDetails?.status === 'COMPLETED' ? 'var(--success)' : 'var(--text-secondary)' }}>{step3Label}</div>
+                                    <div style={{ fontSize: '0.75rem', color: tripDetails?.status === 'COMPLETED' ? 'var(--success)' : 'var(--text-secondary)', fontWeight: 600 }}>{step3Label}</div>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{time3}</div>
                                 </div>
                             </div>
                         </div>
@@ -244,7 +256,7 @@ export default function QAInspectorA() {
                         {tempCompliance < 100 && (
                             <div style={{ borderLeft: '3px solid var(--danger)', paddingLeft: '0.5rem' }}>
                                 <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Temperature Anomaly</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Temp rose above 5°C</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Temp rose above -18°C</div>
                             </div>
                         )}
                         {shockEvents > 0 && (

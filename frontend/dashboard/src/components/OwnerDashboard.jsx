@@ -24,11 +24,9 @@ export default function OwnerDashboard() {
             const { data } = await axios.get(`${API_BASE}/api/trips`);
             setTrips(data);
             
-            // Only fetch sensors for ACTIVE trips to save on API calls
-            const activeTrips = data.filter(t => t.status === 'ACTIVE');
-            
+            // Fetch sensors for all trips to compute global history and quality
             const liveMap = {};
-            await Promise.all(activeTrips.map(async (trip) => {
+            await Promise.all(data.map(async (trip) => {
                 try {
                     const res = await axios.get(`${API_BASE}/api/trips/${trip.trip_id}/sensors`);
                     if (res.data && res.data.sensorData) {
@@ -54,21 +52,9 @@ export default function OwnerDashboard() {
     }, []);
 
     // Derived Agregates
-    const activeTrips = trips.filter(t => t.status === 'ACTIVE');
-    
-    let totalTemp = 0;
-    let tempCount = 0;
-    let criticalAlertsCount = 0;
-    let totalQuality = 0;
-    
-    // Arrays for charts
-    const chartLabels = [];
-    const avgTempData = [];
-    const maxShockData = [];
-
-    const tripMetrics = activeTrips.map(trip => {
+    const globalTripMetrics = trips.map(trip => {
         const sensors = liveData[trip.trip_id];
-        let currentTemp = 0;
+        let currentTemp = null;
         let shockEvents = 0;
         let maxShock = 0;
         let qualityScore = 100;
@@ -78,49 +64,64 @@ export default function OwnerDashboard() {
             const motions = sensors.motion_data || [];
 
             if (temps.length > 0) {
-                const latest = temps[temps.length - 1];
-                currentTemp = Number(latest.avg);
-                totalTemp += currentTemp;
-                tempCount++;
-                
-                // Add to chart arrays safely
-                if (avgTempData.length < 10) {
-                    if (!chartLabels.includes(latest.time)) {
-                        chartLabels.push(latest.time);
-                    }
-                    avgTempData.push(currentTemp);
-                }
+                currentTemp = Number(temps[temps.length - 1].avg);
             }
             if (motions.length > 0) {
                 shockEvents = motions.filter(m => m.max_accel > 0.5).length;
                 maxShock = Math.max(...motions.map(m => m.max_accel));
-                maxShockData.push(maxShock);
             }
 
-            // Simple quality logic
-            if (currentTemp > 5) qualityScore -= 10;
-            if (currentTemp < 0) qualityScore -= 5;
+            if (currentTemp !== null && currentTemp > -18) qualityScore -= 10;
             qualityScore -= (shockEvents * 2);
             qualityScore = Math.max(0, qualityScore);
-            totalQuality += qualityScore;
-            
-            if (currentTemp > 5 || shockEvents > 2) {
-                criticalAlertsCount++;
-            }
         }
 
-        return { ...trip, currentTemp, shockEvents, qualityScore, maxShock };
+        const isTempCrit = currentTemp !== null && currentTemp > -18;
+        const isShockCrit = maxShock > 0.5;
+        const isCrit = isTempCrit || isShockCrit;
+        const isWarn = qualityScore < 90 && !isCrit;
+
+        return { ...trip, currentTemp: currentTemp !== null ? currentTemp : '--', shockEvents, qualityScore, maxShock, isCrit, isWarn };
+    });
+
+    const activeTripMetrics = globalTripMetrics.filter(t => t.status === 'ACTIVE');
+    
+    // Quick Stats Calculations
+    const criticalAlertsCount = globalTripMetrics.filter(t => t.isCrit).length;
+    const fleetAvgQuality = globalTripMetrics.length > 0 ? (globalTripMetrics.reduce((sum, t) => sum + t.qualityScore, 0) / globalTripMetrics.length).toFixed(0) : 100;
+    
+    let totalTemp = 0;
+    let tempCount = 0;
+    activeTripMetrics.forEach(t => {
+        if (t.currentTemp !== undefined && t.currentTemp !== 0) {
+            totalTemp += t.currentTemp;
+            tempCount++;
+        }
     });
 
     const fleetAvgTemp = tempCount > 0 ? (totalTemp / tempCount).toFixed(1) : '--';
-    const fleetAvgQuality = activeTrips.length > 0 ? (totalQuality / activeTrips.length).toFixed(0) : 100;
     
+    // Process real historical Fleet Avg Trend from all fetched liveData
+    const timeBuckets = {};
+    Object.values(liveData).forEach(sensor => {
+        (sensor.temperature_data || []).forEach(t => {
+            if (!timeBuckets[t.time]) timeBuckets[t.time] = { sum: 0, count: 0 };
+            timeBuckets[t.time].sum += Number(t.avg);
+            timeBuckets[t.time].count += 1;
+        });
+    });
+    
+    const sortedTimes = Object.keys(timeBuckets).sort();
+    const displayTimes = sortedTimes.slice(-20); // Last 20 data points
+    const realChartLabels = displayTimes;
+    const realAvgTempData = displayTimes.map(t => (timeBuckets[t].sum / timeBuckets[t].count).toFixed(2));
+
     // Line Chart config (Temperature Trend)
     const tempChartData = {
-        labels: chartLabels.length > 0 ? chartLabels : ['10:00', '10:05', '10:10', '10:15', '10:20'],
+        labels: realChartLabels,
         datasets: [{
             label: 'Avg Fleet Temperature (°C)',
-            data: avgTempData.length > 0 ? avgTempData : [2.1, 2.3, 2.0, 1.8, 2.5],
+            data: realAvgTempData,
             borderColor: '#0CA5E9',
             backgroundColor: 'rgba(12, 165, 233, 0.1)',
             fill: true,
@@ -130,29 +131,40 @@ export default function OwnerDashboard() {
         }]
     };
     
-    // Bar Chart Config (Vibrations)
+    // Bar Chart Config (Vibrations for active and recent trips)
+    // We will show vibration metrics for up to 10 latest trips with actual motion data
+    const shockDataRecords = [];
+    trips.slice(0, 10).forEach(t => {
+        const s = liveData[t.trip_id];
+        if (s && s.motion_data && s.motion_data.length > 0) {
+            const max = Math.max(...s.motion_data.map(m => m.max_accel));
+            shockDataRecords.push({ truck_id: t.truck_id, maxShock: max });
+        }
+    });
+
     const shockChartData = {
-        labels: activeTrips.map(t => t.truck_id),
+        labels: shockDataRecords.map(r => r.truck_id),
         datasets: [{
             label: 'Max Vibration (g)',
-            data: maxShockData.length > 0 ? maxShockData : [0.1, 0.4, 0.2, 0.8],
-            backgroundColor: maxShockData.map(v => v > 0.5 ? '#EF4444' : '#0CA5E9'),
+            data: shockDataRecords.map(r => r.maxShock),
+            backgroundColor: shockDataRecords.map(r => r.maxShock > 0.5 ? '#EF4444' : '#0CA5E9'),
             borderRadius: 4
         }]
     };
 
     // Doughnut chart config
-    const safeCount = tripMetrics.filter(t => t.qualityScore >= 90).length;
-    const warnCount = tripMetrics.filter(t => t.qualityScore >= 70 && t.qualityScore < 90).length;
-    const critCount = tripMetrics.filter(t => t.qualityScore < 70).length;
+    const safeCount = globalTripMetrics.filter(t => t.qualityScore >= 90).length;
+    const warnCount = globalTripMetrics.filter(t => t.qualityScore >= 70 && t.qualityScore < 90).length;
+    const critCount = globalTripMetrics.filter(t => t.qualityScore < 70).length;
     
+    const hasAny = globalTripMetrics.length > 0;
     const riskChartData = {
-        labels: ['Safe', 'Warning', 'Critical'],
+        labels: hasAny ? ['Safe', 'Warning', 'Critical'] : ['No Trips'],
         datasets: [{
-            data: activeTrips.length === 0 ? [1, 0, 0] : [safeCount, warnCount, critCount],
-            backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+            data: hasAny ? [safeCount, warnCount, critCount] : [1],
+            backgroundColor: hasAny ? ['#10B981', '#F59E0B', '#EF4444'] : ['rgba(255,255,255,0.05)'],
             borderWidth: 0,
-            hoverOffset: 4
+            hoverOffset: hasAny ? 4 : 0
         }]
     };
 
@@ -200,7 +212,7 @@ export default function OwnerDashboard() {
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Active Trucks</span>
                         <div style={{ background: 'rgba(12, 165, 233, 0.1)', color: 'var(--accent-cyan)', padding: '0.25rem', borderRadius: '4px' }}>🚚</div>
                     </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700 }}>{activeTrips.length}</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 700 }}>{activeTripMetrics.length}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>On Schedule</div>
                 </div>
                 
@@ -221,8 +233,8 @@ export default function OwnerDashboard() {
                         <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.25rem', borderRadius: '4px' }}>🌡️</div>
                     </div>
                     <div style={{ fontSize: '2rem', fontWeight: 700 }}>{fleetAvgTemp}°C</div>
-                    <div style={{ fontSize: '0.75rem', color: fleetAvgTemp <= 5 ? 'var(--success)' : 'var(--danger)' }}>
-                        {fleetAvgTemp <= 5 ? 'Within safe limits' : 'Above safe average'}
+                    <div style={{ fontSize: '0.75rem', color: fleetAvgTemp <= -18 ? 'var(--success)' : 'var(--danger)' }}>
+                        {fleetAvgTemp <= -18 ? 'Within safe limits' : 'Above safe average'}
                     </div>
                 </div>
 
@@ -245,9 +257,9 @@ export default function OwnerDashboard() {
                 <div style={{ flex: 1, position: 'relative' }}>
                     {/* Simulated Critical Zone highlight overlay */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%', background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.0) 100%)', pointerEvents: 'none', borderTop: '1px dashed var(--danger)' }}>
-                        <span style={{ color: 'var(--danger)', fontSize: '0.65rem', padding: '0.25rem', fontWeight: 'bold' }}>CRITICAL ZONE (&gt;5°C)</span>
+                        <span style={{ color: 'var(--danger)', fontSize: '0.65rem', padding: '0.25rem', fontWeight: 'bold' }}>CRITICAL ZONE (&gt;-18°C)</span>
                     </div>
-                    <Line data={tempChartData} options={{...commonOptions, scales: { y: { min: -10, max: 15, grid: { color: 'rgba(255, 255, 255, 0.05)' } } } }} />
+                    <Line data={tempChartData} options={{...commonOptions, scales: { y: { min: -30, max: 0, grid: { color: 'rgba(255, 255, 255, 0.05)' } } } }} />
                 </div>
             </div>
 
@@ -260,6 +272,7 @@ export default function OwnerDashboard() {
                             <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                                 <th style={{ padding: '0.75rem' }}>Truck ID</th>
                                 <th style={{ padding: '0.75rem' }}>Trip ID</th>
+                                <th style={{ padding: '0.75rem' }}>Dir</th>
                                 <th style={{ padding: '0.75rem' }}>Temperature</th>
                                 <th style={{ padding: '0.75rem' }}>Vibration Level</th>
                                 <th style={{ padding: '0.75rem' }}>Quality Score</th>
@@ -268,8 +281,8 @@ export default function OwnerDashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {tripMetrics.length > 0 ? tripMetrics.map(trip => {
-                                const isTempCrit = trip.currentTemp > 5;
+                            {activeTripMetrics.length > 0 ? activeTripMetrics.map(trip => {
+                                const isTempCrit = trip.currentTemp !== '--' && trip.currentTemp > -18;
                                 const isShockCrit = trip.maxShock > 0.5;
                                 const isCrit = isTempCrit || isShockCrit;
                                 const isWarn = trip.qualityScore < 90 && !isCrit;
@@ -292,8 +305,9 @@ export default function OwnerDashboard() {
                                     <tr key={trip.trip_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
                                         <td style={{ padding: '1rem 0.75rem', fontWeight: 600 }}>{trip.truck_id}</td>
                                         <td style={{ padding: '1rem 0.75rem', color: 'var(--text-secondary)' }}>{trip.trip_id.substring(0,8)}...</td>
+                                        <td style={{ padding: '1rem 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{trip.trip_direction || 'INB'}</td>
                                         <td style={{ padding: '1rem 0.75rem', color: isTempCrit ? 'var(--danger)' : 'var(--text-primary)', fontWeight: isTempCrit ? 600 : 400 }}>
-                                            {trip.currentTemp}°C
+                                            {trip.currentTemp !== '--' ? `${trip.currentTemp}°C` : '--'}
                                         </td>
                                         <td style={{ padding: '1rem 0.75rem', color: isShockCrit ? '#F59E0B' : 'var(--text-primary)' }}>
                                             {trip.maxShock.toFixed(2)}g
@@ -314,7 +328,7 @@ export default function OwnerDashboard() {
                                 );
                             }) : (
                                 <tr>
-                                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active trips found.</td>
+                                    <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active trips found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -323,7 +337,7 @@ export default function OwnerDashboard() {
             </div>
 
             {/* Bottom Split Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', mb: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                 <div className="glass-card" style={{ padding: '1.5rem', height: '300px', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>Vibration Monitoring</div>
                     <div style={{ flex: 1 }}>
@@ -333,15 +347,40 @@ export default function OwnerDashboard() {
 
                 <div className="glass-card" style={{ padding: '1.5rem', height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', width: '100%' }}>Trip Risk Level</div>
-                    <div style={{ flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-                        <Doughnut data={riskChartData} options={{
-                            cutout: '75%', plugins: { legend: { display: true, position: 'bottom' } }
-                        }} />
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{safeCount}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Safe Trips</div>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', minHeight: 0 }}>
+                        <div style={{ position: 'relative', height: '200px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                            <Doughnut data={riskChartData} options={{
+                                maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: true, position: 'right' } }
+                            }} />
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{hasAny ? safeCount : 0}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Safe Trips</div>
+                            </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Notification Bar */}
+            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
+                <div style={{ fontSize: '1.125rem', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--bg-dark)', zIndex: 10, paddingBottom: '0.5rem' }}>Recent Notifications</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {globalTripMetrics.filter(t => t.isCrit || t.isWarn).length > 0 ? (
+                        globalTripMetrics.filter(t => t.isCrit || t.isWarn).map((trip, idx) => (
+                            <div key={idx} style={{ padding: '1rem', background: trip.isCrit ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)', borderLeft: `4px solid ${trip.isCrit ? 'var(--danger)' : '#F59E0B'}`, borderRadius: '0 8px 8px 0', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ fontWeight: 600, color: trip.isCrit ? 'var(--danger)' : '#F59E0B', fontSize: '0.875rem' }}>
+                                    {trip.isCrit ? 'Critical Alert' : 'Warning'} - Trip #{trip.trip_id}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                    {trip.currentTemp !== '--' && trip.currentTemp > -18 && <span>Temperature breached safe limits ({trip.currentTemp}°C). </span>}
+                                    {trip.shockEvents > 0 && <span>High vibration detected ({trip.shockEvents} events). </span>}
+                                    Overall Quality Score: {trip.qualityScore}%
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1rem', textAlign: 'center' }}>No recent critical alerts or warnings. All fleets operating normally.</div>
+                    )}
                 </div>
             </div>
 

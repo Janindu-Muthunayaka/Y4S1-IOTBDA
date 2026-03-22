@@ -80,8 +80,8 @@ export default function TripAnalytics() {
                 fill: true,
             },
             {
-                label: 'Safe Threshold (5°C)',
-                data: labels.map(() => 5.0),
+                label: 'Safe Threshold (-18°C)',
+                data: labels.map(() => -18.0),
                 borderColor: '#ef4444',
                 borderDash: [5, 5],
                 borderWidth: 2,
@@ -138,7 +138,8 @@ export default function TripAnalytics() {
                     <h2 style={{ margin: '0 0 0.5rem 0' }}>Analytics: {trip.trip_id}</h2>
                     <div style={{ color: 'var(--text-secondary)' }}>
                         Truck: <span style={{ color: 'var(--text-primary)' }}>{trip.truck_id}</span> |
-                        Status: <span className={`badge ${isLive ? 'badge-active' : 'badge-completed'}`} style={{ marginLeft: '0.5rem' }}>{trip.status}</span>
+                        Dir: <span style={{ color: 'var(--text-primary)', marginLeft: '0.25rem', marginRight: '0.25rem' }}>{trip.trip_direction || '--'}</span> |
+                        Status: <span className={`badge ${isLive ? 'badge-active' : 'badge-completed'}`} style={{ marginLeft: '0.25rem' }}>{trip.status}</span>
                     </div>
                 </div>
                 <div style={{ textAlign: 'right', display: 'flex', gap: '2rem' }}>
@@ -150,7 +151,7 @@ export default function TripAnalytics() {
                     </div>
                     <div>
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Latest Temp</div>
-                        <div style={{ fontSize: '2rem', fontWeight: 700, color: currentTemp > 5 ? 'var(--danger)' : 'var(--success)' }}>
+                        <div style={{ fontSize: '2rem', fontWeight: 700, color: currentTemp > -18 ? 'var(--danger)' : 'var(--success)' }}>
                             {currentTemp !== '--' ? `${currentTemp}°C` : '--'}
                         </div>
                     </div>

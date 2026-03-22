@@ -10,6 +10,7 @@ class DataFetcher extends EventEmitter {
         // Cache to store the latest data so other modules can retrieve it at any time
         this.gateData = null;
         this.truckData = {}; // Store latest data per truck_id
+        this.truckTimestamps = {}; // Store timestamp of last received data per truck_id
 
         this.client.on('connect', () => {
             console.log('🚢 [Fetcher] Connected to MQTT broker');
@@ -36,6 +37,7 @@ class DataFetcher extends EventEmitter {
                 } else if (topic === 'IOTBDATruckOne') {
                     if (data.truck_id) {
                         this.truckData[data.truck_id] = data;
+                        this.truckTimestamps[data.truck_id] = Date.now();
                     }
                     // Emit event
                     this.emit('truckData', data);
@@ -73,14 +75,24 @@ class DataFetcher extends EventEmitter {
     }
 
     /**
+     * Retrieves the timestamps of the most recently fetched truck data.
+     * @returns {Object}
+     */
+    getTruckTimestamps() {
+        return this.truckTimestamps;
+    }
+
+    /**
      * Clears the cached truck data to reset state between trips
      * @param {string} truckId 
      */
     clearTruckData(truckId) {
         if (truckId) {
             delete this.truckData[truckId];
+            delete this.truckTimestamps[truckId];
         } else {
             this.truckData = {};
+            this.truckTimestamps = {};
         }
     }
 }

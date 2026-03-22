@@ -60,7 +60,7 @@ export default function DriverDashboard() {
         
         if (temps.length > 0) {
             currentTemp = Number(temps[temps.length - 1].avg).toFixed(1);
-            isTempSafe = currentTemp <= 5;
+            isTempSafe = currentTemp <= -18;
             tempStatus = isTempSafe ? 'Within Safe Range' : 'Temperature Alert';
         }
         
@@ -74,10 +74,18 @@ export default function DriverDashboard() {
     const w1 = tripDetails?.weight1 ?? tripDetails?.start_weight ?? tripDetails?.weight ?? '--';
     const w2 = tripDetails?.weight2 ?? tripDetails?.end_weight ?? '--';
 
-    const isOutbound = tripDetails?.trip_direction !== 'INBOUND';
-    const step1Label = isOutbound ? "Warehouse" : "Pick-up";
-    const step2Label = "In Transit";
-    const step3Label = isOutbound ? "Delivery" : "Warehouse";
+    // Formatter
+    const fmtT = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+
+    const isOutbound = tripDetails?.trip_direction === 'OUTBOUND';
+    const step1Label = "Left Warehouse";
+    const step2Label = isOutbound ? "At Customer" : "At Supplier";
+    const step3Label = "Entered Warehouse";
+
+    const time1 = fmtT(tripDetails?.timestamp);
+    const tempsArr = sensorData?.temperature_data || [];
+    const time2 = tempsArr.length > 0 ? (isOutbound ? tempsArr[tempsArr.length - 1].time : tempsArr[0].time) : '--:--';
+    const time3 = tripDetails?.status === 'COMPLETED' ? fmtT(sensorData?.last_updated || tripDetails?.updatedAt) : '--:--';
 
     return (
         <div style={{ 
@@ -148,17 +156,20 @@ export default function DriverDashboard() {
                             <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--accent-cyan)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                 <div style={{ width: '8px', height: '8px', background: 'var(--bg-dark)', borderRadius: '50%' }}></div>
                             </div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{step1Label}</div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-primary)', fontWeight: 600 }}>{step1Label}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>{time1}</div>
                         </div>
                         
                         <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                             <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: tripDetails?.status === 'ACTIVE' ? 'var(--accent-cyan)' : 'var(--border-color)', border: '4px solid var(--bg-dark)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}></div>
-                            <div style={{ fontSize: '0.65rem', color: tripDetails?.status === 'ACTIVE' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{step2Label}</div>
+                            <div style={{ fontSize: '0.65rem', color: tripDetails?.status === 'ACTIVE' ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: 600 }}>{step2Label}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>{time2}</div>
                         </div>
                         
                         <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                             <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: tripDetails?.status === 'COMPLETED' ? 'var(--success)' : 'var(--bg-dark)', border: '2px solid var(--border-color)' }}></div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{step3Label}</div>
+                            <div style={{ fontSize: '0.65rem', color: tripDetails?.status === 'COMPLETED' ? 'var(--success)' : 'var(--text-secondary)', fontWeight: 600 }}>{step3Label}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>{time3}</div>
                         </div>
                     </div>
                 </div>

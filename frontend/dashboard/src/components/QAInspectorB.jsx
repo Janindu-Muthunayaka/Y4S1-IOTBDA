@@ -54,8 +54,8 @@ export default function QAInspectorB() {
                 pointRadius: 2,
             },
             {
-                label: 'Threshold (5°C)',
-                data: labels.map(() => 5.0),
+                label: 'Threshold (-18°C)',
+                data: labels.map(() => -18.0),
                 borderColor: '#ef4444',
                 borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false,
             }
@@ -115,6 +115,7 @@ export default function QAInspectorB() {
                         <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🚧</div>
                         <div>Reserved for Future Alerts & Context Panel</div>
                         <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.7 }}>Trip ID: {id}</div>
+                        <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.7 }}>Direction: {tripDetails?.trip_direction || '--'}</div>
                     </div>
                 </div>
             </div>

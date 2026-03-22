@@ -77,13 +77,12 @@ export default function RetailerDashboard() {
   let qualityScore = 100;
   let isTempCrit = false;
   
-  const highTempEvents = temps.filter(t => Number(t.avg) > 5).length;
+  const highTempEvents = temps.filter(t => Number(t.avg) > -18).length;
   if (highTempEvents > 0) {
       isTempCrit = true;
       qualityScore -= (highTempEvents * 2);
   }
-  if (currentTemp > 5) qualityScore -= 10;
-  if (currentTemp < 0) qualityScore -= 5;
+  if (currentTemp > -18) qualityScore -= 10;
   qualityScore -= (shockEvents * 2);
   qualityScore = Math.max(0, qualityScore);
 
@@ -117,7 +116,7 @@ export default function RetailerDashboard() {
     datasets: [
       {
         label: 'Safe Limit',
-        data: chartLabels.length > 0 ? Array(chartLabels.length).fill(5) : [5, 5, 5, 5, 5],
+        data: chartLabels.length > 0 ? Array(chartLabels.length).fill(-18) : [-18, -18, -18, -18, -18],
         borderColor: '#EF4444',
         borderWidth: 1.5,
         borderDash: [5, 5],
@@ -126,14 +125,14 @@ export default function RetailerDashboard() {
       },
       {
         label: 'Temperature °C',
-        data: tempValues.length > 0 ? tempValues : [4.1, 4.3, 4.5, 6.2, 4.8],
+        data: tempValues.length > 0 ? tempValues : [-19, -19.5, -20.2, -17.5, -18.8],
         borderColor: '#0CA5E9',
         backgroundColor: 'rgba(12, 165, 233, 0.1)',
         fill: true,
         tension: 0.4,
         borderWidth: 2,
         pointBackgroundColor: '#EF4444',
-        pointRadius: tempValues.map(v => v > 5 ? 4 : 2)
+        pointRadius: tempValues.map(v => v > -18 ? 4 : 2)
       }
     ]
   };
@@ -183,7 +182,7 @@ export default function RetailerDashboard() {
           >
               {trips.map(t => <option key={t.trip_id} value={t.trip_id} style={{ background: '#111827' }}>{t.trip_id} ({t.status})</option>)}
           </select>
-          • Truck: <span style={{ color: 'var(--text-primary)' }}>{selectedTrip.truck_id || 'N/A'}</span> • Destination: <span style={{ color: 'var(--text-primary)' }}>Retail Center</span>
+          • Truck: <span style={{ color: 'var(--text-primary)' }}>{selectedTrip.truck_id || 'N/A'}</span> • Direction: <span style={{ color: 'var(--text-primary)' }}>{selectedTrip.trip_direction || 'INBOUND'}</span>
           {isLoading && <span style={{ marginLeft: '10px', fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>Loading live stream...</span>}
         </div>
       </div>
