@@ -1,0 +1,49 @@
+╔══════════════════════════════════════════════════════════════╗
+║                 TRUCK ESP32 WIRING TABLE                    ║
+╠══════════════════════════════════════════════════════════════╣
+║  DHT11 TEMPERATURE SENSOR → ESP32                           ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  DHT11 PIN     ║  ESP32 PIN   ║  NOTES                       ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  VCC           ║  3.3V / 5V   ║  Module dependent            ║
+║  GND           ║  GND         ║  Common Ground               ║
+║  DATA          ║  GPIO 4      ║  DHTPIN in code              ║
+╠════════════════╩══════════════╩══════════════════════════════╣
+║  MPU6050 ACCELEROMETER → ESP32 (I2C)                        ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  MPU6050 PIN   ║  ESP32 PIN   ║  NOTES                       ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  VCC           ║  3.3V / 5V   ║  Module dependent            ║
+║  GND           ║  GND         ║  Common Ground               ║
+║  SDA           ║  GPIO 21     ║  I2C Data                    ║
+║  SCL           ║  GPIO 22     ║  I2C Clock                   ║
+║  AD0           ║  GND         ║  Optional, keeps addr 0x68   ║
+╠════════════════╩══════════════╩══════════════════════════════╣
+║  STATUS LEDs → ESP32                                         ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  LED FUNCTION  ║  ESP32 PIN   ║  NOTES                       ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  Temp Alert    ║  GPIO 2      ║  TEMP_LED_PIN                ║
+║  Shock Alert   ║  GPIO 18     ║  SHOCK_LED_PIN               ║
+╠════════════════╩══════════════╩══════════════════════════════╣
+║  TRIP BUTTON → ESP32                                         ║
+╠════════════════╦══════════════╦══════════════════════════════╣
+║  BUTTON PIN    ║  ESP32 PIN   ║  NOTES                       ║
+╠════════════════╬══════════════╬══════════════════════════════╣
+║  Signal        ║  GPIO 15     ║  BUTTON_PIN, INPUT_PULLUP    ║
+║  Other side    ║  GND         ║  Press = LOW                 ║
+╠════════════════╩══════════════╩══════════════════════════════╣
+║  COMMUNICATION SETTINGS (from Truck_ESP32.ino)              ║
+╠════════════════╦═════════════════════════════════════════════╣
+║  WiFi SSID     ║  LOQ7929                                     ║
+║  MQTT Broker   ║  broker.hivemq.com                          ║
+║  MQTT Port     ║  1883                                        ║
+║  MQTT Topic    ║  IOTBDATruckOne                             ║
+╚════════════════╩═════════════════════════════════════════════╝
+
+Quick firmware notes:
+- I2C bus is initialized as Wire.begin(21, 22).
+- DHT11 is read from GPIO 4.
+- Shock value is computed as: shockG = abs(totalG - 1.0).
+- Alert threshold in code: SHOCK_THRESHOLD = 0.1.
+- Button uses INPUT_PULLUP, so wiring is button-to-GND for press events.
