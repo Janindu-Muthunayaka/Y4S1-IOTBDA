@@ -2,17 +2,25 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import TripsTable from './components/TripsTable';
 import TripAnalytics from './components/TripAnalytics';
-import QAInspectorA from './components/QAInspectorA';
-import DriverDashboard from './components/DriverDashboard';
-import OwnerDashboard from './components/OwnerDashboard';
-import RetailerDashboard from './components/RetailerDashboard';
-import QAInspectorB from './components/QAInspectorB';
+
+// Dashboards
+import QAInspectorA from './components/qa-inspector/QAInspectorA';
+import QAInspectorB from './components/qa-inspector/QAInspectorB';
+import DriverDashboard from './components/driver/DriverDashboard';
+import OwnerDashboard from './components/owner/OwnerDashboard';
+import RetailerDashboard from './components/retailer/RetailerDashboard';
+
+// Landing Pages
+import DriverLanding from './components/driver/DriverLanding';
+import RetailerLanding from './components/retailer/RetailerLanding';
+import OwnerLanding from './components/owner/OwnerLanding';
+import QAInspectorLanding from './components/qa-inspector/QAInspectorLanding';
 
 function Sidebar() {
   const location = useLocation();
 
   // Hide sidebar on specialized views that have their own full-screen layouts
-  if (location.pathname === '/driver' || location.pathname.startsWith('/qa-b')) return null;
+  if (location.pathname.startsWith('/driver') || location.pathname.startsWith('/qa-b')) return null;
 
   return (
     <div style={{ width: '240px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -20,16 +28,16 @@ function Sidebar() {
       <Link to="/" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname === '/' ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
         📊 Dashboard
       </Link>
-      <Link to="/qa" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname === '/qa' ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
+      <Link to="/qa" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname.startsWith('/qa') ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
         🔍 QA Inspector
       </Link>
-      <Link to="/driver" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname === '/driver' ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
+      <Link to="/driver" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname.startsWith('/driver') ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
         📱 Driver View
       </Link>
-      <Link to="/owner" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname === '/owner' ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
+      <Link to="/owner" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname.startsWith('/owner') ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
         🏢 Owner Dashboard
       </Link>
-      <Link to="/retailer" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname === '/retailer' ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
+      <Link to="/retailer" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname.startsWith('/retailer') ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
         🏪 Retailer View
       </Link>
     </div>
@@ -39,10 +47,10 @@ function Sidebar() {
 function MainLayout() {
    const location = useLocation();
    // The mockup for QA Inspector matches its own layout, but driver is specifically full-screen
-   const isQa = location.pathname === '/qa' || location.pathname.startsWith('/qa-b');
-   const isDriver = location.pathname === '/driver';
-   const isOwner = location.pathname === '/owner';
-   const isRetailer = location.pathname === '/retailer';
+   const isQa = location.pathname.startsWith('/qa');
+   const isDriver = location.pathname.startsWith('/driver');
+   const isOwner = location.pathname.startsWith('/owner');
+   const isRetailer = location.pathname.startsWith('/retailer');
    const isSpecialFull = isQa || isDriver || isOwner || isRetailer;
 
    return (
@@ -54,11 +62,19 @@ function MainLayout() {
           <Routes>
             <Route path="/" element={<TripsTable />} />
             <Route path="/trip/:id" element={<TripAnalytics />} />
-            <Route path="/qa" element={<QAInspectorA />} />
+            
+            <Route path="/qa" element={<QAInspectorLanding />} />
+            <Route path="/qa/dashboard" element={<QAInspectorA />} />
             <Route path="/qa-b/:id" element={<QAInspectorB />} />
-            <Route path="/driver" element={<DriverDashboard />} />
-            <Route path="/owner" element={<OwnerDashboard />} />
-            <Route path="/retailer" element={<RetailerDashboard />} />
+            
+            <Route path="/driver" element={<DriverLanding />} />
+            <Route path="/driver/dashboard" element={<DriverDashboard />} />
+            
+            <Route path="/owner" element={<OwnerLanding />} />
+            <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+            
+            <Route path="/retailer" element={<RetailerLanding />} />
+            <Route path="/retailer/dashboard" element={<RetailerDashboard />} />
           </Routes>
         </div>
       </div>
