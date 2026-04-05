@@ -20,7 +20,7 @@ function Sidebar() {
   const location = useLocation();
 
   // Hide sidebar on specialized views that have their own full-screen layouts
-  if (location.pathname.startsWith('/driver') || location.pathname.startsWith('/qa-b')) return null;
+  if (location.pathname.startsWith('/qa-b')) return null;
 
   return (
     <div style={{ width: '240px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -54,9 +54,9 @@ function MainLayout() {
    const isSpecialFull = isQa || isDriver || isOwner || isRetailer;
 
    return (
-    <div style={{ display: 'flex', minHeight: '100vh', width: '100%', justifyContent: isDriver ? 'center' : 'flex-start' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', width: '100%', justifyContent: 'flex-start' }}>
       <Sidebar />
-      <div style={{ flex: 1, overflowX: 'auto', display: 'flex', flexDirection: 'column', padding: (isDriver || location.pathname.startsWith('/qa-b')) ? 0 : undefined }}>
+      <div style={{ flex: 1, overflowX: 'auto', display: 'flex', flexDirection: 'column', padding: location.pathname.startsWith('/qa-b') ? 0 : undefined }}>
         {!isSpecialFull && <h1 className="header-title" style={{ marginTop: '2rem' }}>Cold-Chain Logistics Nexus</h1>}
         <div className={!isSpecialFull ? "dashboard-container" : ""} style={!isSpecialFull ? { paddingTop: 0 } : { flex: 1, display: 'flex' }}>
           <Routes>
