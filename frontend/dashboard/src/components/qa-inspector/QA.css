@@ -378,35 +378,24 @@
   font-size: 13px;
 }
 
-/* Zone Badges */
-.qa-zone-badge {
+/* ── TABLE CELLS & PILLS ────────────────────────────────────────── */
+.qa-trip-id-cell {
+  padding: 12px 16px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 700;
+  color: #1A1730;
+}
+.qa-truck-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.qa-zone-active {
-  background: #E8F8F0;
-  color: #0D7A4E;
-}
-.qa-zone-pending {
-  background: #F3F3F6;
-  color: #666;
-  border: 1px solid #E0DFE8;
-}
-.qa-zone-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.qa-zone-active .qa-zone-dot {
-  background: #0D7A4E;
-}
-.qa-zone-pending .qa-zone-dot {
-  background: #AAA;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* View Button */

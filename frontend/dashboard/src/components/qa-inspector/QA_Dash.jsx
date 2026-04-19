@@ -58,17 +58,6 @@ export default function QA_Dash() {
     const inboundTrips = trips.filter(t => t.trip_direction === 'INBOUND');
     const outboundTrips = trips.filter(t => t.trip_direction === 'OUTBOUND');
 
-    // Derive zone label from trip status & direction
-    const getZoneInfo = (trip) => {
-        if (trip.status === 'ACTIVE') {
-            return { label: 'In Transit', isActive: true };
-        }
-        if (trip.status === 'COMPLETED') {
-            return { label: trip.trip_direction === 'INBOUND' ? 'Unloading Dock' : 'Loading Dock', isActive: true };
-        }
-        return { label: 'Pending', isActive: false };
-    };
-
     // Derive alerts from sensor data
     const buildAlerts = () => {
         const alerts = [];
@@ -141,27 +130,33 @@ export default function QA_Dash() {
 
     // Render a trip table row
     const renderTripRow = (trip) => {
-        const zone = getZoneInfo(trip);
         const departureTime = fmtTime(trip.timestamp);
-        const arrivalTime = (trip.status === 'COMPLETED' && trip.updatedAt)
-            ? fmtTime(trip.updatedAt)
-            : (trip.status === 'ACTIVE' ? 'In Transit' : '--:--');
+        const status = trip.status?.toUpperCase() || 'UNKNOWN';
+
+        // Arrival time: use last sensor update (last_updated from sensordata) as the most accurate
+        // proxy for when the trip ended. Fall back to trip-level fields if unavailable.
+        const sd = sensorMap[trip.trip_id];
+        const arrivalRaw = sd?.last_updated || trip.end_time || trip.updatedAt || trip.updated_at;
+        const arrivalTime = status === 'ACTIVE'
+            ? 'In Transit'
+            : (arrivalRaw ? fmtTime(arrivalRaw) : '--:--');
 
         return (
             <tr key={trip._id}>
-                <td className="qa-truck-id">
-                    <div style={{ fontWeight: 600 }}>{trip.truck_id || '--'}</div>
-                    <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>ID: {trip.trip_id}</div>
+                <td className="qa-trip-id-cell">
+                    <div style={{ fontWeight: 700, color: '#4F46E5', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>{trip.trip_id}</div>
                 </td>
                 <td className="qa-time-cell">{departureTime}</td>
                 <td className="qa-time-cell">
                     <span className="qa-time-flow">{arrivalTime}</span>
                 </td>
                 <td>
-                    <span className={`qa-zone-badge ${zone.isActive ? 'qa-zone-active' : 'qa-zone-pending'}`}>
-                        <span className="qa-zone-dot"></span>
-                        {zone.label}
-                    </span>
+                    <div className="qa-truck-pill">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px', opacity: 0.7 }}>
+                            <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
+                        </svg>
+                        {trip.truck_id || '--'}
+                    </div>
                 </td>
                 <td>
                     <button
@@ -211,20 +206,11 @@ export default function QA_Dash() {
             <aside className="qa-sidebar">
                 <div className="qa-sidebar-logo">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <line x1="12" y1="2" x2="12" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="2" y1="12" x2="22" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="5" y1="5" x2="19" y2="19" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="19" y1="5" x2="5" y2="19" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <circle cx="12" cy="2" r="1.5" fill="white" />
-                        <circle cx="12" cy="22" r="1.5" fill="white" />
-                        <circle cx="2" cy="12" r="1.5" fill="white" />
-                        <circle cx="22" cy="12" r="1.5" fill="white" />
+                        <line x1="12" y1="2" x2="12" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="2" y1="12" x2="22" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="5" y1="5" x2="19" y2="19" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="19" y1="5" x2="5" y2="19" stroke="white" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="2" r="1.5" fill="white"/><circle cx="12" cy="22" r="1.5" fill="white"/><circle cx="2" cy="12" r="1.5" fill="white"/><circle cx="22" cy="12" r="1.5" fill="white"/>
                     </svg>
                 </div>
 
                 <nav className="qa-nav-items">
-                    {/* Dashboard = grid icon (active on this page) */}
-                    {/* Dashboard = grid icon */}
                     <div className="qa-nav-item active" onClick={() => navigate('/qa/dash')}>
                         <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
@@ -232,22 +218,19 @@ export default function QA_Dash() {
                         </svg>
                         <span className="qa-tooltip">Dashboard</span>
                     </div>
-                    {/* Trip Detail = truck icon */}
                     <div className="qa-nav-item" onClick={() => navigate('/qa/dash')}>
                         <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
                             <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
                         </svg>
-                        <span className="qa-tooltip">Trip Detail</span>
+                        <span className="qa-tooltip">Trips</span>
                     </div>
-                    {/* Analytics = pulse icon */}
-                    <div className="qa-nav-item" onClick={() => navigate('/qa/dash')}>
+                    <div className="qa-nav-item" onClick={() => navigate('/qa/dashboard')}>
                         <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                         </svg>
-                        <span className="qa-tooltip">Analytics</span>
+                        <span className="qa-tooltip">Live Monitor</span>
                     </div>
-                    {/* Timeline = grid lines icon */}
                     <div className="qa-nav-item">
                         <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="17" y1="2" x2="17" y2="22" /><line x1="7" y1="2" x2="7" y2="22" />
@@ -255,7 +238,6 @@ export default function QA_Dash() {
                         </svg>
                         <span className="qa-tooltip">Timeline</span>
                     </div>
-                    {/* Settings = gear icon */}
                     <div className="qa-nav-item" onClick={() => navigate('/qa/dashboard')}>
                         <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="3" />
@@ -278,27 +260,30 @@ export default function QA_Dash() {
                 </div>
             </aside>
 
-            {/* ── Main ─────────────────────────────────────────────────── */}
-            <div className="qa-main">
+            {/* ── Main Content ────────────────────────────────────────── */}
+            <main className="qa-main">
                 {/* Header */}
                 <header className="qa-header">
-                    <div className="qa-breadcrumb">
-                        <span>Dashboard</span>
-                        <span className="sep">›</span>
-                        <span className="current">Overview of incoming trucks &amp; alerts</span>
+                    <div className="qa-header-left">
+                        <h2 className="qa-header-title">QA Inspector Overview</h2>
+                        <div className="qa-header-sep"></div>
+                        <div className="qa-header-badge">
+                            Live Monitoring
+                            <div className="qa-badge-dot"></div>
+                        </div>
                     </div>
-                    <div className="qa-header-controls">
-                        <button className="qa-dropdown-btn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round">
-                                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    <div className="qa-header-right">
+                        <div className="qa-sync-pill">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
                             </svg>
-                            Last 24 Hours <span className="arrow">▼</span>
-                        </button>
-                        <button className="qa-dropdown-btn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+                            All systems nominal
+                        </div>
+                        <button className="qa-action-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
-                            All Zones <span className="arrow">▼</span>
+                            Search Data
                         </button>
                     </div>
                 </header>
@@ -330,10 +315,10 @@ export default function QA_Dash() {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Truck ID</th>
+                                        <th>Trip ID</th>
                                         <th>Departure</th>
                                         <th>Arrival</th>
-                                        <th>Location Zone</th>
+                                        <th>Truck ID</th>
                                         <th>Trip View</th>
                                     </tr>
                                 </thead>
@@ -348,15 +333,6 @@ export default function QA_Dash() {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="qa-legend-strip">
-                            <span className="qa-legend-label">Zone Status:</span>
-                            <span className="qa-legend-item">
-                                <span className="qa-legend-swatch" style={{ background: '#0D7A4E' }}></span> Active / Cleared
-                            </span>
-                            <span className="qa-legend-item">
-                                <span className="qa-legend-swatch" style={{ background: '#CCC', border: '1px solid #DDD' }}></span> Pending / Awaiting
-                            </span>
-                        </div>
                     </div>
 
                     {/* ── Outgoing Trucks (OUTBOUND) ───────────────────── */}
@@ -366,7 +342,6 @@ export default function QA_Dash() {
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
                                     <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-                                    <line x1="21" y1="7" x2="24" y2="7" stroke="#6C5CE7" strokeWidth="2" />
                                 </svg>
                                 <span className="qa-section-title">Outgoing Trucks</span>
                                 <span className="qa-badge qa-badge-trucks">{outboundTrips.length} trucks</span>
@@ -382,10 +357,10 @@ export default function QA_Dash() {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Truck ID</th>
+                                        <th>Trip ID</th>
                                         <th>Departure</th>
                                         <th>Arrival</th>
-                                        <th>Location Zone</th>
+                                        <th>Truck ID</th>
                                         <th>Trip View</th>
                                     </tr>
                                 </thead>
@@ -450,8 +425,7 @@ export default function QA_Dash() {
                     </div>
 
                 </div>
-            </div>
-
+            </main>
         </div>
     );
 }
