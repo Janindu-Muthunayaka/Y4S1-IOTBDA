@@ -276,6 +276,25 @@ export default function QAInspectorA() {
                     </div>
                 </div>
             </div>
+
+            <div style={{ position: 'fixed', right: '24px', bottom: '24px', display: 'flex', gap: '12px' }}>
+                <button 
+                    className="test-mode-btn" 
+                    onClick={() => navigate('/qa/dash')} 
+                    style={{ background: '#4b5563', position: 'static' }}
+                    title="Return to production dashboard"
+                >
+                    🏠 Exit Test Mode
+                </button>
+                <button 
+                    className="test-mode-btn" 
+                    onClick={() => selectedTripId && navigate(`/qa-b/${selectedTripId}`)} 
+                    style={{ background: '#6366f1', position: 'static' }}
+                    title="Switch to detailed view"
+                >
+                    🔄 Detail View (B)
+                </button>
+            </div>
         </div>
     );
 }

@@ -21,7 +21,7 @@ export default function QAInspectorLanding() {
           Detailed quality analysis, condition reports, and QA issue tracking.
         </p>
         <button
-          onClick={() => navigate('/qa/dashboard')}
+          onClick={() => navigate('/qa/dash')}
           style={{
             padding: '1rem 3rem', fontSize: '1.25rem', fontWeight: 'bold',
             background: '#ff6b6b', color: '#fff', border: 'none',
