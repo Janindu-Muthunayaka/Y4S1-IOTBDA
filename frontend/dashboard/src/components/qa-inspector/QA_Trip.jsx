@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import QASidebar from './QASidebar';
 import './QA.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -70,23 +71,23 @@ export default function QA_Trip() {
 
     // Build alerts
     const buildAlerts = () => {
-        const alerts = [];
+        const alertsList = [];
         if (tempViolations.length > 0) {
             const worst = tempViolations.reduce((a, b) => (a.avg > b.avg ? a : b));
-            alerts.push({ sev: 'red', label: 'Critical', msg: `Temperature exceeded -18°C (${worst.avg?.toFixed(1)}°C) for ${tempViolations.length} interval(s)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
+            alertsList.push({ type: 'critical', label: 'Critical', msg: `Temperature exceeded -18°C (${worst.avg?.toFixed(1)}°C) for ${tempViolations.length} interval(s)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
         }
         if (majorShocks.length > 0) {
             const worst = majorShocks.reduce((a, b) => (a.max_accel > b.max_accel ? a : b));
-            alerts.push({ sev: 'orange', label: 'High', msg: `High vibration detected (${worst.max_accel?.toFixed(2)}G peak)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
+            alertsList.push({ type: 'warning', label: 'High', msg: `High vibration detected (${worst.max_accel?.toFixed(2)}G peak)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
         }
         const minorShocks = motions.filter(m => m.max_accel > 0.3 && m.max_accel <= 0.5);
         if (minorShocks.length > 0) {
-            alerts.push({ sev: 'yellow', label: 'Medium', msg: `Minor shock events logged (${minorShocks.length})`, time: minorShocks[0].time || fmtTime(trip.timestamp), truck: trip.truck_id });
+            alertsList.push({ type: 'minor', label: 'Medium', msg: `Minor shock events logged (${minorShocks.length})`, time: minorShocks[0].time || fmtTime(trip.timestamp), truck: trip.truck_id });
         }
-        if (alerts.length === 0) {
-            alerts.push({ sev: 'gray', label: 'Info', msg: 'All parameters within normal range', time: fmtTime(trip.timestamp), truck: 'System' });
+        if (alertsList.length === 0) {
+            alertsList.push({ type: 'info', label: 'Info', msg: 'All parameters within normal range', time: fmtTime(trip.timestamp), truck: 'System' });
         }
-        return alerts;
+        return alertsList;
     };
 
     const alerts = isLoading ? [] : buildAlerts();
@@ -123,61 +124,7 @@ export default function QA_Trip() {
     return (
         <div className="qt-root">
             {/* ── SIDEBAR ── */}
-            <aside className="qa-sidebar">
-                <div className="qa-sidebar-logo">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <line x1="12" y1="2" x2="12" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="2" y1="12" x2="22" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="5" y1="5" x2="19" y2="19" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="19" y1="5" x2="5" y2="19" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                </div>
-                <nav className="qa-nav-items">
-                    <div className="qa-nav-item" onClick={() => navigate('/qa/dash')}>
-                        <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-                            <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-                        </svg>
-                        <span className="qa-tooltip">Dashboard</span>
-                    </div>
-                    <div className="qa-nav-item active" onClick={() => navigate(`/qa/trip/${id}`)}>
-                        <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
-                            <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-                        </svg>
-                        <span className="qa-tooltip">Trip Detail</span>
-                    </div>
-                    <div className="qa-nav-item" onClick={() => navigate(`/qa/graphs/${id}`)}>
-                        <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                        </svg>
-                        <span className="qa-tooltip">Analytics (Graphs)</span>
-                    </div>
-                    <div className="qa-nav-item" onClick={() => navigate(`/qa/timeline/${id}`)}>
-                        <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="17" y1="2" x2="17" y2="22" /><line x1="7" y1="2" x2="7" y2="22" />
-                            <line x1="2" y1="12" x2="22" y2="12" />
-                        </svg>
-                        <span className="qa-tooltip">Timeline</span>
-                    </div>
-                    <div className="qa-nav-item" onClick={() => navigate('/qa/dashboard')}>
-                        <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="3" />
-                            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-                        </svg>
-                        <span className="qa-tooltip">Settings (Test Mode)</span>
-                    </div>
-                </nav>
-                <div className="qa-sidebar-bottom">
-                    <div className="qa-bell-btn">
-                        <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
-                        </svg>
-                        {alerts.some(a => a.sev === 'red' || a.sev === 'orange') && <div className="qa-bell-dot"></div>}
-                    </div>
-                    <div className="qa-avatar">QA</div>
-                </div>
-            </aside>
+            <QASidebar activeTab="trip" tripId={id} alerts={alerts} />
 
             {/* ── MAIN WRAPPER ── */}
             <div className="qt-main">
@@ -202,8 +149,12 @@ export default function QA_Trip() {
                         </div>
                         <div className="qt-header-sep"></div>
                         <div className="qt-header-field">
-                            <span className="qt-header-label">Arrival:</span>
-                            <span className="qt-header-value">{trip.updatedAt ? fmtTime(trip.updatedAt) : (trip.status === 'ACTIVE' ? 'In Transit' : '--:--')}</span>
+                            <span className="qt-header-label">Trip End:</span>
+                            <span className="qt-header-value">{
+                                (trip.status || '').toUpperCase() === 'ACTIVE' || !trip.status 
+                                ? 'In Transit' 
+                                : (trip.end_time || trip.updatedAt || trip.updated_at ? fmtTime(trip.end_time || trip.updatedAt || trip.updated_at) : '--:--')
+                            }</span>
                         </div>
                     </div>
                     <div className="qt-header-right">
