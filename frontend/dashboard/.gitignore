@@ -23,4 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-JaninduKey=AIzaSyAUSp11WiS2a4Lvis1g7FEnxAJsxbr8khg
+src/components/qa-inspector/Chatbot/Persona.txt
+src/components/qa-inspector/Chatbot/Pretext.txt
