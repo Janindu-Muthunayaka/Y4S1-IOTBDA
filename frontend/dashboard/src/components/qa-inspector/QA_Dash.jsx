@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QASidebar from './QASidebar';
+import { useChatbot } from './Chatbot/ChatbotContext';
 import './QA.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -11,6 +12,19 @@ export default function QA_Dash() {
     const [trips, setTrips] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [sensorMap, setSensorMap] = useState({});
+    const { updateSnapshot } = useChatbot();
+
+    // Push overview data to chatbot context
+    useEffect(() => {
+        if (!isLoading && trips.length > 0) {
+            updateSnapshot({
+                type: 'FLEET_OVERVIEW',
+                trips: trips,
+                activeTrips: trips.filter(t => t.status === 'ACTIVE').length,
+                totalTrips: trips.length
+            });
+        }
+    }, [isLoading, trips, updateSnapshot]);
 
     // Fetch all trips
     useEffect(() => {

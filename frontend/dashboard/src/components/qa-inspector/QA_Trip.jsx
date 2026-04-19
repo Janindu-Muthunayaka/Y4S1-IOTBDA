@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QASidebar from './QASidebar';
+import { useChatbot } from './Chatbot/ChatbotContext';
 import './QA.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -14,6 +15,24 @@ export default function QA_Trip() {
     const [isLoading, setIsLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState('just now');
     const syncTimer = useRef(0);
+    const { updateSnapshot } = useChatbot();
+
+    // Push trip data to chatbot context
+    useEffect(() => {
+        if (!isLoading && tripDetails && sensorData) {
+            updateSnapshot({
+                trip: tripDetails,
+                sensorData: sensorData,
+                kpis: {
+                    qualityScore,
+                    tempCompliance,
+                    cold: temps.filter(t => t.avg < -22),
+                    hot: temps.filter(t => t.avg > -18),
+                    shocks: motions.filter(m => m.max_accel > 0.5)
+                }
+            });
+        }
+    }, [isLoading, tripDetails, sensorData, qualityScore, tempCompliance, updateSnapshot]);
 
     // Fetch trip + sensor data
     useEffect(() => {

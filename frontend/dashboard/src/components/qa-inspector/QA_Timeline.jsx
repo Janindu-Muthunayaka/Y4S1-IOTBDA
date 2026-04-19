@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QASidebar from './QASidebar';
+import { useChatbot } from './Chatbot/ChatbotContext';
 import './QA.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -14,6 +15,7 @@ export default function QA_Timeline() {
     const [isLoading, setIsLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState('just now');
     const syncTimer = useRef(0);
+    const { updateSnapshot } = useChatbot();
 
     useEffect(() => {
         if (!id) return;
@@ -67,6 +69,23 @@ export default function QA_Timeline() {
     const hotPeak = tempViolationsHot.length > 0 ? Math.max(...tempViolationsHot.map(t => t.avg)).toFixed(1) : '--';
     const peakVib = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel || 0)).toFixed(2) : '--';
     const avgVib = motions.length > 0 ? (motions.reduce((s, m) => s + (m.max_accel || 0), 0) / motions.length).toFixed(2) : '--';
+
+    // ── Update Chatbot Snapshot ──
+    useEffect(() => {
+        if (tripDetails && sensorData) {
+            updateSnapshot({
+                trip: tripDetails,
+                sensorData: sensorData,
+                kpis: {
+                    qualityScore,
+                    tempCompliance,
+                    cold: tempViolationsCold,
+                    hot: tempViolationsHot,
+                    shocks: shockEvents
+                }
+            });
+        }
+    }, [tripDetails, sensorData, qualityScore, tempCompliance, tempViolationsCold, tempViolationsHot, shockEvents, updateSnapshot]);
 
     // ── Build normalized events with smart fallback positioning ──
     const buildSnakeEvents = () => {

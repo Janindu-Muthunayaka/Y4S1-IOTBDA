@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { ChatbotProvider } from './components/qa-inspector/Chatbot/ChatbotContext';
+import MrHodhaMaalu from './components/qa-inspector/Chatbot/MrHodhaMaalu';
 import TripsTable from './components/TripsTable';
 import TripAnalytics from './components/TripAnalytics';
 
@@ -86,6 +88,8 @@ function MainLayout() {
           </Routes>
         </div>
       </div>
+      {/* Mr. Hodha-Maalu Chatbot - Restricted to QA Inspector Module */}
+      {isQa && <MrHodhaMaalu />}
     </div>
    );
 }
@@ -93,7 +97,9 @@ function MainLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <MainLayout />
+      <ChatbotProvider>
+        <MainLayout />
+      </ChatbotProvider>
     </BrowserRouter>
   );
 }
