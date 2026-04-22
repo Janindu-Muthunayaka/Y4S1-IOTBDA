@@ -17,37 +17,7 @@ export default function QA_Timeline() {
     const syncTimer = useRef(0);
     const { updateSnapshot } = useChatbot();
 
-    useEffect(() => {
-        if (!id) return;
-        let mounted = true;
-        const fetchData = async () => {
-            try {
-                const { data } = await axios.get(`${API_BASE}/api/trips/${id}/sensors`);
-                if (mounted) {
-                    setTripDetails(data.trip);
-                    setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
-                    setIsLoading(false);
-                    syncTimer.current = 0;
-                    setLastSynced('just now');
-                }
-            } catch (err) {
-                console.error(err);
-                if (mounted) setIsLoading(false);
-            }
-        };
-        fetchData();
-        const dataInterval = setInterval(fetchData, 5000);
-        const tickInterval = setInterval(() => {
-            syncTimer.current += 1;
-            setLastSynced(`${syncTimer.current}s ago`);
-        }, 1000);
-        return () => {
-            mounted = false;
-            clearInterval(dataInterval);
-            clearInterval(tickInterval);
-        };
-    }, [id]);
-
+    // Helpers
     const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
     const trip = tripDetails || {};
@@ -85,7 +55,38 @@ export default function QA_Timeline() {
                 }
             });
         }
-    }, [tripDetails, sensorData, qualityScore, tempCompliance, tempViolationsCold, tempViolationsHot, shockEvents, updateSnapshot]);
+    }, [tripDetails, sensorData, qualityScore, tempCompliance, updateSnapshot]);
+
+    useEffect(() => {
+        if (!id) return;
+        let mounted = true;
+        const fetchData = async () => {
+            try {
+                const { data } = await axios.get(`${API_BASE}/api/trips/${id}/sensors`);
+                if (mounted) {
+                    setTripDetails(data.trip);
+                    setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
+                    setIsLoading(false);
+                    syncTimer.current = 0;
+                    setLastSynced('just now');
+                }
+            } catch (err) {
+                console.error(err);
+                if (mounted) setIsLoading(false);
+            }
+        };
+        fetchData();
+        const dataInterval = setInterval(fetchData, 5000);
+        const tickInterval = setInterval(() => {
+            syncTimer.current += 1;
+            setLastSynced(`${syncTimer.current}s ago`);
+        }, 1000);
+        return () => {
+            mounted = false;
+            clearInterval(dataInterval);
+            clearInterval(tickInterval);
+        };
+    }, [id]);
 
     // ── Build normalized events with smart fallback positioning ──
     const buildSnakeEvents = () => {

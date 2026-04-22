@@ -17,6 +17,29 @@ export default function QA_Trip() {
     const syncTimer = useRef(0);
     const { updateSnapshot } = useChatbot();
 
+    // Derived data
+    const temps = sensorData?.temperature_data || [];
+    const motions = sensorData?.motion_data || [];
+    const trip = tripDetails || {};
+
+    // KPI calculations
+    const avgTemp = temps.length > 0 ? (temps.reduce((s, t) => s + (t.avg || 0), 0) / temps.length) : null;
+    const tempViolations = temps.filter(t => t.avg > -18);
+    const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
+    const majorShocks = motions.filter(m => m.max_accel > 0.5);
+    const qualityScore = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5)));
+    const isLowRisk = qualityScore > 80;
+
+    // Weight data
+    const startWeight = trip.start_weight || trip.weight1 || null;
+    const endWeight = trip.end_weight || trip.weight2 || null;
+    const weightLoss = (startWeight && endWeight) ? startWeight - endWeight : null;
+    const weightLossPct = (startWeight && weightLoss !== null) ? ((weightLoss / startWeight) * 100).toFixed(1) : null;
+
+    // Bar chart helpers
+    const maxTempVal = temps.length > 0 ? Math.max(...temps.map(t => Math.abs(t.avg || 0))) : 1;
+    const maxShockVal = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel || 0)) : 1;
+
     // Push trip data to chatbot context
     useEffect(() => {
         if (!isLoading && tripDetails && sensorData) {
@@ -64,29 +87,6 @@ export default function QA_Trip() {
 
     // Helpers
     const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-
-    // Derived data
-    const temps = sensorData?.temperature_data || [];
-    const motions = sensorData?.motion_data || [];
-    const trip = tripDetails || {};
-
-    // KPI calculations
-    const avgTemp = temps.length > 0 ? (temps.reduce((s, t) => s + (t.avg || 0), 0) / temps.length) : null;
-    const tempViolations = temps.filter(t => t.avg > -18);
-    const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
-    const majorShocks = motions.filter(m => m.max_accel > 0.5);
-    const qualityScore = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5)));
-    const isLowRisk = qualityScore > 80;
-
-    // Weight data
-    const startWeight = trip.start_weight || trip.weight1 || null;
-    const endWeight = trip.end_weight || trip.weight2 || null;
-    const weightLoss = (startWeight && endWeight) ? startWeight - endWeight : null;
-    const weightLossPct = (startWeight && weightLoss !== null) ? ((weightLoss / startWeight) * 100).toFixed(1) : null;
-
-    // Bar chart helpers
-    const maxTempVal = temps.length > 0 ? Math.max(...temps.map(t => Math.abs(t.avg || 0))) : 1;
-    const maxShockVal = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel || 0)) : 1;
 
     // Build alerts
     const buildAlerts = () => {
