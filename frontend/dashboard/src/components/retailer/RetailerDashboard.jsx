@@ -5,6 +5,8 @@ import {
   Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
+import { ChatbotProvider as Retail_ChatbotProvider, useChatbot } from './Retail_Chatbot/Retail_ChatbotContext';
+import Retail_MrHodhaMaalu from './Retail_Chatbot/Retail_MrHodhaMaalu';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, BarElement,
@@ -13,11 +15,12 @@ ChartJS.register(
 
 const API_BASE = 'http://localhost:3001';
 
-export default function RetailerDashboard() {
+function RetailerDashboardContent() {
   const [trips, setTrips] = useState([]);
   const [selectedTripId, setSelectedTripId] = useState('');
   const [sensorData, setSensorData] = useState({ temperature_data: [], motion_data: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const { updateSnapshot } = useChatbot();
 
   useEffect(() => {
     fetchTrips();
@@ -106,6 +109,23 @@ export default function RetailerDashboard() {
       statusDesc = 'Inspect carefully upon arrival';
       statusBg = 'rgba(245, 158, 11, 0.15)'; // Warning tint
   }
+
+  // Push data to chatbot
+  useEffect(() => {
+    if (selectedTripId) {
+        updateSnapshot({
+            trip: selectedTrip,
+            sensorData: sensorData,
+            kpis: {
+                qualityScore,
+                tempCompliance: (100 - (highTempEvents * 2)).toFixed(0),
+                shocks: motions.filter(m => m.max_accel > 0.5),
+                cold: temps.filter(t => Number(t.avg) < -22),
+                hot: temps.filter(t => Number(t.avg) > -18)
+            }
+        });
+    }
+  }, [selectedTripId, sensorData, qualityScore, updateSnapshot]);
 
   // Chart configs
   const chartLabels = temps.slice(-15).map(t => t.time);
@@ -262,7 +282,7 @@ export default function RetailerDashboard() {
              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600 }}>Active Alerts</div>
                 <div style={{ background: 'rgba(245, 158, 11, 0.15)', borderRadius: '16px', padding: '0.25rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, color: '#F59E0B' }}>
-                  {(isTempCrit ? 1 : 0) + (isShockCrit ? 1 : 0)} Events
+                   {(isTempCrit ? 1 : 0) + (isShockCrit ? 1 : 0)} Events
                 </div>
              </div>
              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -376,6 +396,15 @@ export default function RetailerDashboard() {
           </div>
       </div>
 
+      <Retail_MrHodhaMaalu />
     </div>
   );
+}
+
+export default function RetailerDashboard() {
+    return (
+        <Retail_ChatbotProvider>
+            <RetailerDashboardContent />
+        </Retail_ChatbotProvider>
+    );
 }

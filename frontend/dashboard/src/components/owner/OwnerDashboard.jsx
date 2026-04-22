@@ -5,6 +5,8 @@ import {
   Title, Tooltip, Legend, Filler, ArcElement
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { ChatbotProvider as Owner_ChatbotProvider, useChatbot } from './Owner_Chatbot/Owner_ChatbotContext';
+import Owner_MrHodhaMaalu from './Owner_Chatbot/Owner_MrHodhaMaalu';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, BarElement,
@@ -13,10 +15,11 @@ ChartJS.register(
 
 const API_BASE = 'http://localhost:3001';
 
-export default function OwnerDashboard() {
+function OwnerDashboardContent() {
     const [trips, setTrips] = useState([]);
     const [liveData, setLiveData] = useState({});
     const [isLoading, setIsLoading] = useState(true);
+    const { updateSnapshot } = useChatbot();
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -115,6 +118,21 @@ export default function OwnerDashboard() {
     const displayTimes = sortedTimes.slice(-20); // Last 20 data points
     const realChartLabels = displayTimes;
     const realAvgTempData = displayTimes.map(t => (timeBuckets[t].sum / timeBuckets[t].count).toFixed(2));
+
+    // Push data to chatbot
+    useEffect(() => {
+        if (!isLoading && trips.length > 0) {
+            updateSnapshot({
+                type: 'FLEET_STRATEGY_OVERVIEW',
+                totalTrips: trips.length,
+                activeTrips: activeTripMetrics.length,
+                fleetAvgQuality: fleetAvgQuality,
+                fleetAvgTemp: fleetAvgTemp,
+                criticalAlerts: globalTripMetrics.filter(t => t.isCrit),
+                warningTrips: globalTripMetrics.filter(t => t.isWarn)
+            });
+        }
+    }, [isLoading, trips, fleetAvgQuality, fleetAvgTemp, updateSnapshot]);
 
     // Line Chart config (Temperature Trend)
     const tempChartData = {
@@ -383,7 +401,16 @@ export default function OwnerDashboard() {
                     )}
                 </div>
             </div>
-
+            
+            <Owner_MrHodhaMaalu />
         </div>
+    );
+}
+
+export default function OwnerDashboard() {
+    return (
+        <Owner_ChatbotProvider>
+            <OwnerDashboardContent />
+        </Owner_ChatbotProvider>
     );
 }
