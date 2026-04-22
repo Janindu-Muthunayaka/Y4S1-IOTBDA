@@ -1,389 +1,308 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
-import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement,
-  Title, Tooltip, Legend, Filler, ArcElement
-} from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
-
-ChartJS.register(
-  CategoryScale, LinearScale, PointElement, LineElement, BarElement,
-  Title, Tooltip, Legend, Filler, ArcElement
-);
+import { io } from 'socket.io-client';
+import './owner.css';
+import { OwnerHome } from './pages/OwnerHome';
+import OwnerTrucks from './pages/OwnerTrucks';
+import OwnerTruckDetail from './pages/OwnerTruckDetail';
+import OwnerAlerts from './pages/OwnerAlerts';
+import OwnerReports from './pages/OwnerReports';
 
 const API_BASE = 'http://localhost:3001';
+const POLL_INTERVAL_MS = 8000;  // Fallback polling every 8 seconds
+const SOCKET_URL = 'http://localhost:3001';
+
+// ─── Sidebar Navigation Items ─────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { label: 'Dashboard', icon: '⊞', path: '/owner/dashboard' },
+  { label: 'Trucks',    icon: '🚛', path: '/owner/trucks' },
+  { label: 'Alerts',   icon: '🔔', path: '/owner/alerts' },
+  { label: 'Reports',  icon: '📋', path: '/owner/reports' },
+];
+
+// ─── Connection status indicator ──────────────────────────────────────────────
+function ConnStatus({ status }) {
+  const cfg = {
+    live:        { color: '#10b981', label: 'Live', dot: 'pulse' },
+    polling:     { color: '#f59e0b', label: 'Polling', dot: '' },
+    connecting:  { color: '#9ca3af', label: 'Connecting…', dot: '' },
+    error:       { color: '#ef4444', label: 'Offline', dot: '' },
+  }[status] || { color: '#9ca3af', label: status };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', fontWeight: 600, color: cfg.color }}>
+      <span style={{
+        width: 7, height: 7, borderRadius: '50%', background: cfg.color, flexShrink: 0,
+        boxShadow: status === 'live' ? `0 0 0 2px ${cfg.color}33` : 'none',
+        animation: status === 'live' ? 'o-pulse 2s ease infinite' : 'none'
+      }} />
+      {cfg.label}
+    </div>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function OwnerSidebar({ critCount }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path) => {
+    if (path === '/owner/dashboard') return location.pathname === '/owner/dashboard';
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <div className="owner-sidebar">
+      <div className="owner-sidebar__logo">
+        <div className="owner-sidebar__logo-icon">CL</div>
+        <div>
+          <div className="owner-sidebar__logo-text">CargoLink</div>
+          <div className="owner-sidebar__logo-sub">Owner Portal</div>
+        </div>
+      </div>
+
+      <nav className="owner-sidebar__nav">
+        <div className="owner-nav-section">Main Menu</div>
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.path}
+            className={`owner-nav-item ${isActive(item.path) ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+          >
+            <span className="owner-nav-item__icon">{item.icon}</span>
+            {item.label}
+            {item.label === 'Alerts' && critCount > 0 && (
+              <span className="owner-nav-badge">{critCount}</span>
+            )}
+          </button>
+        ))}
+
+        <div className="owner-nav-section" style={{ marginTop: '1rem' }}>Navigation</div>
+        <button className="owner-nav-item" onClick={() => navigate('/')}>
+          <span className="owner-nav-item__icon">←</span>
+          Back to Hub
+        </button>
+      </nav>
+
+      <div className="owner-sidebar__footer">
+        <div className="owner-sidebar__avatar">IM</div>
+        <button className="owner-sidebar__footer-btn" title="Notifications">🔔</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Top Bar ──────────────────────────────────────────────────────────────────
+function OwnerTopBar({ connStatus, lastUpdated, tripCount, sensorCount }) {
+  const location = useLocation();
+  const pageTitle = NAV_ITEMS.find(n => {
+    if (n.path === '/owner/dashboard') return location.pathname === '/owner/dashboard';
+    return location.pathname.startsWith(n.path);
+  })?.label || 'Dashboard';
+
+  const isTruckDetail = location.pathname.includes('/owner/trucks/');
+  const truckId = isTruckDetail ? location.pathname.split('/owner/trucks/')[1] : null;
+
+  const timeStr = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '';
+
+  return (
+    <div className="owner-topbar">
+      <div className="owner-topbar__breadcrumb">
+        <span>Owner</span>
+        <span className="owner-topbar__sep">/</span>
+        <span className="owner-topbar__page">{pageTitle}</span>
+        {truckId && (
+          <>
+            <span className="owner-topbar__sep">/</span>
+            <span className="owner-topbar__page">{truckId}</span>
+          </>
+        )}
+      </div>
+
+      <div className="owner-topbar__right">
+        {/* Live data stats */}
+        {tripCount > 0 && (
+          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.72rem', color: '#9ca3af', borderRight: '1px solid #e5e7eb', paddingRight: '0.75rem', marginRight: '0.25rem' }}>
+            <span><strong style={{ color: '#374151' }}>{tripCount}</strong> trips</span>
+            <span><strong style={{ color: '#374151' }}>{sensorCount}</strong> sensor docs</span>
+          </div>
+        )}
+        <ConnStatus status={connStatus} />
+        {timeStr && (
+          <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+            Updated {timeStr}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Dashboard Layout ────────────────────────────────────────────────────
 
 export default function OwnerDashboard() {
-    const [trips, setTrips] = useState([]);
-    const [liveData, setLiveData] = useState({});
-    const [isLoading, setIsLoading] = useState(true);
+  const [trips, setTrips] = useState([]);
+  const [liveData, setLiveData] = useState({});   // { trip_id: sensorDoc }
+  const [connStatus, setConnStatus] = useState('connecting');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const socketRef = useRef(null);
+  const pollTimerRef = useRef(null);
 
-    const fetchData = async () => {
-        setIsLoading(true);
+  // ── Apply a full data payload (from socket or REST) ─────────────────────────
+  const applyPayload = useCallback((payload) => {
+    if (!payload) return;
+    const { trips: newTrips, sensorMap } = payload;
+    setTrips(newTrips || []);
+    setLiveData(sensorMap || {});
+    setLastUpdated(new Date());
+    setIsLoading(false);
+  }, []);
+
+  // ── REST API polling fallback ────────────────────────────────────────────────
+  const pollFallback = useCallback(async () => {
+    try {
+      // Use the new /api/dashboard/full endpoint — single round trip
+      const res = await axios.get(`${API_BASE}/api/dashboard/full`);
+      applyPayload(res.data);
+    } catch (err) {
+      console.error('[Dashboard] Polling fallback failed:', err.message);
+      setConnStatus('error');
+    }
+  }, [applyPayload]);
+
+  // ── Legacy per-trip sensor fetch (used by manual Refresh button) ─────────────
+  const fetchAll = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data: tripList } = await axios.get(`${API_BASE}/api/trips`);
+      const sensorMap = {};
+      await Promise.all(tripList.map(async trip => {
         try {
-            const { data } = await axios.get(`${API_BASE}/api/trips`);
-            setTrips(data);
-            
-            // Fetch sensors for all trips to compute global history and quality
-            const liveMap = {};
-            await Promise.all(data.map(async (trip) => {
-                try {
-                    const res = await axios.get(`${API_BASE}/api/trips/${trip.trip_id}/sensors`);
-                    if (res.data && res.data.sensorData) {
-                        liveMap[trip.trip_id] = res.data.sensorData;
-                    }
-                } catch (e) {
-                    console.error("Error fetching sensors for", trip.trip_id);
-                }
-            }));
-            
-            setLiveData(liveMap);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+          const res = await axios.get(`${API_BASE}/api/trips/${trip.trip_id}/sensors`);
+          if (res.data?.sensorData) sensorMap[trip.trip_id] = res.data.sensorData;
+        } catch {}
+      }));
+      applyPayload({ trips: tripList, sensorMap });
+    } catch (err) {
+      console.error('[Dashboard] Manual refresh failed:', err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [applyPayload]);
 
-    useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 5000);
-        return () => clearInterval(interval);
-    }, []);
+  // ── Socket.io setup ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    console.log('[Dashboard] Connecting to Socket.io at', SOCKET_URL);
+    setConnStatus('connecting');
 
-    // Derived Agregates
-    const globalTripMetrics = trips.map(trip => {
-        const sensors = liveData[trip.trip_id];
-        let currentTemp = null;
-        let shockEvents = 0;
-        let maxShock = 0;
-        let qualityScore = 100;
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
+    socketRef.current = socket;
 
-        if (sensors) {
-            const temps = sensors.temperature_data || [];
-            const motions = sensors.motion_data || [];
-
-            if (temps.length > 0) {
-                currentTemp = Number(temps[temps.length - 1].avg);
-            }
-            if (motions.length > 0) {
-                shockEvents = motions.filter(m => m.max_accel > 0.5).length;
-                maxShock = Math.max(...motions.map(m => m.max_accel));
-            }
-
-            if (currentTemp !== null && currentTemp > -18) qualityScore -= 10;
-            qualityScore -= (shockEvents * 2);
-            qualityScore = Math.max(0, qualityScore);
-        }
-
-        const isTempCrit = currentTemp !== null && currentTemp > -18;
-        const isShockCrit = maxShock > 0.5;
-        const isCrit = isTempCrit || isShockCrit;
-        const isWarn = qualityScore < 90 && !isCrit;
-
-        return { ...trip, currentTemp: currentTemp !== null ? currentTemp : '--', shockEvents, qualityScore, maxShock, isCrit, isWarn };
+    // ── Socket events ──────────────────────────────────────────────────────────
+    socket.on('connect', () => {
+      console.log('[Socket.io] ✅ Connected — real-time mode active');
+      setConnStatus('live');
+      // Cancel polling fallback if socket is live
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
     });
 
-    const activeTripMetrics = globalTripMetrics.filter(t => t.status === 'ACTIVE');
-    
-    // Quick Stats Calculations
-    const criticalAlertsCount = globalTripMetrics.filter(t => t.isCrit).length;
-    const fleetAvgQuality = globalTripMetrics.length > 0 ? (globalTripMetrics.reduce((sum, t) => sum + t.qualityScore, 0) / globalTripMetrics.length).toFixed(0) : 100;
-    
-    let totalTemp = 0;
-    let tempCount = 0;
-    activeTripMetrics.forEach(t => {
-        if (t.currentTemp !== undefined && t.currentTemp !== 0) {
-            totalTemp += t.currentTemp;
-            tempCount++;
-        }
+    socket.on('disconnect', (reason) => {
+      console.warn('[Socket.io] Disconnected:', reason, '→ falling back to polling');
+      setConnStatus('polling');
+      startPollingFallback();
     });
 
-    const fleetAvgTemp = tempCount > 0 ? (totalTemp / tempCount).toFixed(1) : '--';
-    
-    // Process real historical Fleet Avg Trend from all fetched liveData
-    const timeBuckets = {};
-    Object.values(liveData).forEach(sensor => {
-        (sensor.temperature_data || []).forEach(t => {
-            if (!timeBuckets[t.time]) timeBuckets[t.time] = { sum: 0, count: 0 };
-            timeBuckets[t.time].sum += Number(t.avg);
-            timeBuckets[t.time].count += 1;
-        });
-    });
-    
-    const sortedTimes = Object.keys(timeBuckets).sort();
-    const displayTimes = sortedTimes.slice(-20); // Last 20 data points
-    const realChartLabels = displayTimes;
-    const realAvgTempData = displayTimes.map(t => (timeBuckets[t].sum / timeBuckets[t].count).toFixed(2));
-
-    // Line Chart config (Temperature Trend)
-    const tempChartData = {
-        labels: realChartLabels,
-        datasets: [{
-            label: 'Avg Fleet Temperature (°C)',
-            data: realAvgTempData,
-            borderColor: '#0CA5E9',
-            backgroundColor: 'rgba(12, 165, 233, 0.1)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 3,
-            pointBackgroundColor: '#0CA5E9'
-        }]
-    };
-    
-    // Bar Chart Config (Vibrations for active and recent trips)
-    // We will show vibration metrics for up to 10 latest trips with actual motion data
-    const shockDataRecords = [];
-    trips.slice(0, 10).forEach(t => {
-        const s = liveData[t.trip_id];
-        if (s && s.motion_data && s.motion_data.length > 0) {
-            const max = Math.max(...s.motion_data.map(m => m.max_accel));
-            shockDataRecords.push({ truck_id: t.truck_id, maxShock: max });
-        }
+    socket.on('connect_error', (err) => {
+      console.error('[Socket.io] Connection error:', err.message, '→ falling back to polling');
+      setConnStatus('polling');
+      startPollingFallback();
     });
 
-    const shockChartData = {
-        labels: shockDataRecords.map(r => r.truck_id),
-        datasets: [{
-            label: 'Max Vibration (g)',
-            data: shockDataRecords.map(r => r.maxShock),
-            backgroundColor: shockDataRecords.map(r => r.maxShock > 0.5 ? '#EF4444' : '#0CA5E9'),
-            borderRadius: 4
-        }]
+    // ── Main real-time data event ──────────────────────────────────────────────
+    socket.on('data:full', (payload) => {
+      console.log(`[Socket.io] 📡 Received live update: ${payload?.trips?.length} trips, ${Object.keys(payload?.sensorMap || {}).length} sensor docs`);
+      applyPayload(payload);
+    });
+
+    // ── Cleanup on unmount ─────────────────────────────────────────────────────
+    return () => {
+      socket.disconnect();
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
+  }, [applyPayload]);
 
-    // Doughnut chart config
-    const safeCount = globalTripMetrics.filter(t => t.qualityScore >= 90).length;
-    const warnCount = globalTripMetrics.filter(t => t.qualityScore >= 70 && t.qualityScore < 90).length;
-    const critCount = globalTripMetrics.filter(t => t.qualityScore < 70).length;
-    
-    const hasAny = globalTripMetrics.length > 0;
-    const riskChartData = {
-        labels: hasAny ? ['Safe', 'Warning', 'Critical'] : ['No Trips'],
-        datasets: [{
-            data: hasAny ? [safeCount, warnCount, critCount] : [1],
-            backgroundColor: hasAny ? ['#10B981', '#F59E0B', '#EF4444'] : ['rgba(255,255,255,0.05)'],
-            borderWidth: 0,
-            hoverOffset: hasAny ? 4 : 0
-        }]
-    };
+  // ── Polling fallback (starts if socket fails) ─────────────────────────────
+  const startPollingFallback = useCallback(() => {
+    if (pollTimerRef.current) return; // Already polling
+    console.log(`[Dashboard] Starting polling fallback every ${POLL_INTERVAL_MS / 1000}s`);
+    pollFallback(); // Immediate first poll
+    pollTimerRef.current = setInterval(pollFallback, POLL_INTERVAL_MS);
+  }, [pollFallback]);
 
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94A3B8' } },
-            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94A3B8' } }
-        }
-    };
+  // ── Critical alert count for sidebar badge ────────────────────────────────
+  const critCount = trips.filter(trip => {
+    const sensors = liveData[trip.trip_id];
+    const temps = sensors?.temperature_data || [];
+    const motions = sensors?.motion_data || [];
+    const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
+    const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
+    return (currentTemp !== null && currentTemp > -18) || maxShock > 0.5;
+  }).length;
 
-    return (
-        <div style={{ width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 700, backgroundImage: 'linear-gradient(45deg, var(--text-primary), var(--accent-cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Fleet & Owner Overview
-                </h2>
-                
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div className="glass-card" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                        📅 <span>Today</span>
-                    </div>
-                    <div className="glass-card" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                        🚚 <span>All Active Trucks</span>
-                    </div>
-                    <button 
-                        onClick={fetchData}
-                        className="glass-card" 
-                        style={{ padding: '0.5rem 1rem', background: 'var(--accent-purple)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, transition: '0.2s', opacity: isLoading ? 0.7 : 1 }}
-                    >
-                        {isLoading ? 'Refreshing...' : '↻ Refresh Data'}
-                    </button>
-                </div>
+  const sensorCount = Object.keys(liveData).length;
+
+  return (
+    <div className="owner-root" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', overflow: 'hidden', zIndex: 100 }}>
+      <OwnerSidebar critCount={critCount} />
+      <div className="owner-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, minWidth: 0 }}>
+        <OwnerTopBar
+          connStatus={connStatus}
+          lastUpdated={lastUpdated}
+          tripCount={trips.length}
+          sensorCount={sensorCount}
+        />
+        <div className="owner-page-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, padding: '1.5rem 1.75rem 2.5rem' }}>
+          {isLoading && trips.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '1rem' }}>
+              <div className="owner-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+              <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Connecting to live data stream…</div>
             </div>
-
-            {/* Quick Stats Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Active Trucks</span>
-                        <div style={{ background: 'rgba(12, 165, 233, 0.1)', color: 'var(--accent-cyan)', padding: '0.25rem', borderRadius: '4px' }}>🚚</div>
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700 }}>{activeTripMetrics.length}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>On Schedule</div>
-                </div>
-                
-                <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Critical Alerts</span>
-                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.25rem', borderRadius: '4px' }}>⚠️</div>
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700 }}>{criticalAlertsCount}</div>
-                    <div style={{ fontSize: '0.75rem', color: criticalAlertsCount > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
-                        {criticalAlertsCount > 0 ? 'Requires immediate action' : 'No issues'}
-                    </div>
-                </div>
-
-                <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Average Temperature</span>
-                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.25rem', borderRadius: '4px' }}>🌡️</div>
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700 }}>{fleetAvgTemp}°C</div>
-                    <div style={{ fontSize: '0.75rem', color: fleetAvgTemp <= -18 ? 'var(--success)' : 'var(--danger)' }}>
-                        {fleetAvgTemp <= -18 ? 'Within safe limits' : 'Above safe average'}
-                    </div>
-                </div>
-
-                <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Quality Score</span>
-                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '0.25rem', borderRadius: '4px' }}>⭐</div>
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700 }}>{fleetAvgQuality}%</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Overall fleet average</div>
-                </div>
-            </div>
-
-            {/* Temperature Trend Full width */}
-            <div className="glass-card" style={{ padding: '1.5rem', height: '350px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>Temperature Trend (Fleet Avg)</div>
-                    <div className="glass-card" style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem', cursor: 'pointer' }}>Export Data</div>
-                </div>
-                <div style={{ flex: 1, position: 'relative' }}>
-                    {/* Simulated Critical Zone highlight overlay */}
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%', background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.0) 100%)', pointerEvents: 'none', borderTop: '1px dashed var(--danger)' }}>
-                        <span style={{ color: 'var(--danger)', fontSize: '0.65rem', padding: '0.25rem', fontWeight: 'bold' }}>CRITICAL ZONE (&gt;-18°C)</span>
-                    </div>
-                    <Line data={tempChartData} options={{...commonOptions, scales: { y: { min: -30, max: 0, grid: { color: 'rgba(255, 255, 255, 0.05)' } } } }} />
-                </div>
-            </div>
-
-            {/* Live Truck Monitoring Table */}
-            <div className="glass-card" style={{ padding: '1.5rem' }}>
-                <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1.5rem' }}>Live Truck Monitoring</div>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                <th style={{ padding: '0.75rem' }}>Truck ID</th>
-                                <th style={{ padding: '0.75rem' }}>Trip ID</th>
-                                <th style={{ padding: '0.75rem' }}>Dir</th>
-                                <th style={{ padding: '0.75rem' }}>Temperature</th>
-                                <th style={{ padding: '0.75rem' }}>Vibration Level</th>
-                                <th style={{ padding: '0.75rem' }}>Quality Score</th>
-                                <th style={{ padding: '0.75rem' }}>Risk Status</th>
-                                <th style={{ padding: '0.75rem' }}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {activeTripMetrics.length > 0 ? activeTripMetrics.map(trip => {
-                                const isTempCrit = trip.currentTemp !== '--' && trip.currentTemp > -18;
-                                const isShockCrit = trip.maxShock > 0.5;
-                                const isCrit = isTempCrit || isShockCrit;
-                                const isWarn = trip.qualityScore < 90 && !isCrit;
-                                
-                                let statusColor = 'var(--success)';
-                                let statusText = 'Safe';
-                                let statusBg = 'rgba(16, 185, 129, 0.15)';
-                                
-                                if (isCrit) {
-                                    statusColor = 'var(--danger)';
-                                    statusText = 'Critical';
-                                    statusBg = 'rgba(239, 68, 68, 0.15)';
-                                } else if (isWarn) {
-                                    statusColor = '#F59E0B'; // var(--warning) fallback
-                                    statusText = 'Warning';
-                                    statusBg = 'rgba(245, 158, 11, 0.15)';
-                                }
-
-                                return (
-                                    <tr key={trip.trip_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                                        <td style={{ padding: '1rem 0.75rem', fontWeight: 600 }}>{trip.truck_id}</td>
-                                        <td style={{ padding: '1rem 0.75rem', color: 'var(--text-secondary)' }}>{trip.trip_id.substring(0,8)}...</td>
-                                        <td style={{ padding: '1rem 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{trip.trip_direction || 'INB'}</td>
-                                        <td style={{ padding: '1rem 0.75rem', color: isTempCrit ? 'var(--danger)' : 'var(--text-primary)', fontWeight: isTempCrit ? 600 : 400 }}>
-                                            {trip.currentTemp !== '--' ? `${trip.currentTemp}°C` : '--'}
-                                        </td>
-                                        <td style={{ padding: '1rem 0.75rem', color: isShockCrit ? '#F59E0B' : 'var(--text-primary)' }}>
-                                            {trip.maxShock.toFixed(2)}g
-                                        </td>
-                                        <td style={{ padding: '1rem 0.75rem' }}>{trip.qualityScore}%</td>
-                                        <td style={{ padding: '1rem 0.75rem' }}>
-                                            <span style={{ 
-                                                background: statusBg, color: statusColor, 
-                                                padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' 
-                                            }}>
-                                                {statusText}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                                            •••
-                                        </td>
-                                    </tr>
-                                );
-                            }) : (
-                                <tr>
-                                    <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No active trips found.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Bottom Split Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-                <div className="glass-card" style={{ padding: '1.5rem', height: '300px', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>Vibration Monitoring</div>
-                    <div style={{ flex: 1 }}>
-                        <Bar data={shockChartData} options={commonOptions} />
-                    </div>
-                </div>
-
-                <div className="glass-card" style={{ padding: '1.5rem', height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', width: '100%' }}>Trip Risk Level</div>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', minHeight: 0 }}>
-                        <div style={{ position: 'relative', height: '200px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                            <Doughnut data={riskChartData} options={{
-                                maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: true, position: 'right' } }
-                            }} />
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{hasAny ? safeCount : 0}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Safe Trips</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Notification Bar */}
-            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
-                <div style={{ fontSize: '1.125rem', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--bg-dark)', zIndex: 10, paddingBottom: '0.5rem' }}>Recent Notifications</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {globalTripMetrics.filter(t => t.isCrit || t.isWarn).length > 0 ? (
-                        globalTripMetrics.filter(t => t.isCrit || t.isWarn).map((trip, idx) => (
-                            <div key={idx} style={{ padding: '1rem', background: trip.isCrit ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)', borderLeft: `4px solid ${trip.isCrit ? 'var(--danger)' : '#F59E0B'}`, borderRadius: '0 8px 8px 0', display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ fontWeight: 600, color: trip.isCrit ? 'var(--danger)' : '#F59E0B', fontSize: '0.875rem' }}>
-                                    {trip.isCrit ? 'Critical Alert' : 'Warning'} - Trip #{trip.trip_id}
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    {trip.currentTemp !== '--' && trip.currentTemp > -18 && <span>Temperature breached safe limits ({trip.currentTemp}°C). </span>}
-                                    {trip.shockEvents > 0 && <span>High vibration detected ({trip.shockEvents} events). </span>}
-                                    Overall Quality Score: {trip.qualityScore}%
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1rem', textAlign: 'center' }}>No recent critical alerts or warnings. All fleets operating normally.</div>
-                    )}
-                </div>
-            </div>
-
+          ) : (
+            <Routes>
+              <Route path="dashboard" element={
+                <OwnerHome trips={trips} liveData={liveData} isLoading={isLoading} onRefresh={fetchAll} connStatus={connStatus} />
+              } />
+              <Route path="trucks" element={
+                <OwnerTrucks trips={trips} liveData={liveData} />
+              } />
+              <Route path="trucks/:truckId" element={
+                <OwnerTruckDetail trips={trips} liveData={liveData} />
+              } />
+              <Route path="alerts" element={
+                <OwnerAlerts trips={trips} liveData={liveData} />
+              } />
+              <Route path="reports" element={
+                <OwnerReports trips={trips} liveData={liveData} />
+              } />
+              <Route path="*" element={
+                <OwnerHome trips={trips} liveData={liveData} isLoading={isLoading} onRefresh={fetchAll} connStatus={connStatus} />
+              } />
+            </Routes>
+          )}
         </div>
-    );
+      </div>
+    </div>
+  );
 }

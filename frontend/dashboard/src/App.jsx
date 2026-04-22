@@ -27,6 +27,7 @@ function Sidebar() {
 
   // Hide sidebar on specialized views that have their own full-screen layouts
   if (location.pathname.startsWith('/qa') || location.pathname.startsWith('/qa-b')) return null;
+  if (location.pathname.startsWith('/owner') && location.pathname !== '/owner') return null;
 
   return (
     <div style={{ width: '240px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -55,16 +56,25 @@ function MainLayout() {
    // The mockup for QA Inspector matches its own layout, but driver is specifically full-screen
    const isQa = location.pathname.startsWith('/qa');
    const isDriver = location.pathname.startsWith('/driver');
-   const isOwner = location.pathname.startsWith('/owner');
-   const isRetailer = location.pathname.startsWith('/retailer');
+   const isOwner = location.pathname.startsWith('/owner') && location.pathname !== '/owner';
+   const isRetailer = location.pathname.startsWith('/retailer') && location.pathname !== '/retailer';
    const isSpecialFull = isQa || isDriver || isOwner || isRetailer;
 
    return (
-    <div style={{ display: 'flex', minHeight: '100vh', width: '100%', justifyContent: 'flex-start' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', height: isSpecialFull ? '100vh' : undefined, width: '100%', justifyContent: 'flex-start', overflow: isSpecialFull ? 'hidden' : undefined }}>
       <Sidebar />
-      <div style={{ flex: 1, overflowX: 'auto', display: 'flex', flexDirection: 'column', padding: (location.pathname.startsWith('/qa') || location.pathname.startsWith('/qa-b')) ? 0 : undefined }}>
+      <div style={{
+        flex: 1, minWidth: 0,
+        display: 'flex', flexDirection: 'column',
+        overflow: isSpecialFull ? 'hidden' : 'auto',
+        minHeight: isSpecialFull ? 0 : undefined,
+        padding: (location.pathname.startsWith('/qa') || location.pathname.startsWith('/qa-b')) ? 0 : undefined
+      }}>
         {!isSpecialFull && <h1 className="header-title" style={{ marginTop: '2rem' }}>Cold-Chain Logistics Nexus</h1>}
-        <div className={!isSpecialFull ? "dashboard-container" : ""} style={!isSpecialFull ? { paddingTop: 0 } : { flex: 1, display: 'flex' }}>
+        <div
+          className={!isSpecialFull ? "dashboard-container" : ""}
+          style={!isSpecialFull ? { paddingTop: 0 } : { flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}
+        >
           <Routes>
             <Route path="/" element={<TripsTable />} />
             <Route path="/trip/:id" element={<TripAnalytics />} />
@@ -81,7 +91,7 @@ function MainLayout() {
             <Route path="/driver/dashboard" element={<DriverDashboard />} />
             
             <Route path="/owner" element={<OwnerLanding />} />
-            <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+            <Route path="/owner/*" element={<OwnerDashboard />} />
             
             <Route path="/retailer" element={<RetailerLanding />} />
             <Route path="/retailer/dashboard" element={<RetailerDashboard />} />
