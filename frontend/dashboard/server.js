@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +60,75 @@ app.get('/api/trips/:trip_id/sensors', async (req, res) => {
         const trip = await Trip.findOne({ trip_id: req.params.trip_id });
         const sensorData = await SensorData.findOne({ trip_id: req.params.trip_id });
         res.json({ trip, sensorData });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- ML Pipeline Endpoint ---
+app.get('/api/quality-score/:trip_id', async (req, res) => {
+    try {
+        const trip = await Trip.findOne({ trip_id: req.params.trip_id });
+        const sensorData = await SensorData.findOne({ trip_id: req.params.trip_id });
+        
+        if (!trip || !sensorData) {
+            return res.status(404).json({ error: 'Trip or SensorData not found' });
+        }
+
+        // Calculate duration in minutes if timestamps are available
+        let durationMinutes = 165; // default fallback
+        if (trip.timestamp && sensorData.last_updated) {
+            const start = new Date(trip.timestamp);
+            const end = new Date(sensorData.last_updated);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                durationMinutes = (end - start) / 60000;
+            }
+        }
+
+        const payload = JSON.stringify({
+            trip: trip,
+            sensorData: sensorData,
+            duration_minutes: durationMinutes
+        });
+
+        const pythonScriptPath = path.join(__dirname, 'QualityScore', 'predict_quality.py');
+        
+        // Spawn Python process
+        const pythonProcess = spawn('python', [pythonScriptPath]);
+
+        let dataString = '';
+        let errorString = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            dataString += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorString += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Python script exited with code ${code}. Error: ${errorString}`);
+                return res.status(500).json({ error: 'Failed to calculate quality score' });
+            }
+            
+            try {
+                // Find the JSON block from stdout (in case python prints other warnings before JSON)
+                const lines = dataString.trim().split('\n');
+                const jsonOutput = lines[lines.length - 1];
+                const result = JSON.parse(jsonOutput);
+                res.json(result);
+            } catch (err) {
+                console.error('Failed to parse Python output:', dataString);
+                res.status(500).json({ error: 'Invalid output from ML model pipeline' });
+            }
+        });
+
+        // Write the payload to python stdin and close it
+        pythonProcess.stdin.write(payload);
+        pythonProcess.stdin.end();
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
