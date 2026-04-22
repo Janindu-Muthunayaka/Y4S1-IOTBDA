@@ -141,12 +141,12 @@ export default function QA_Trip() {
     const timeline = buildTimeline();
 
     return (
-        <div className="qt-root">
+        <div className="qa-root">
             {/* ── SIDEBAR ── */}
             <QASidebar activeTab="trip" tripId={id} alerts={alerts} />
 
             {/* ── MAIN WRAPPER ── */}
-            <div className="qt-main">
+            <main className="qa-main">
                 {/* HEADER */}
                 <header className="qt-header">
                     <div className="qt-header-left">
@@ -357,7 +357,7 @@ export default function QA_Trip() {
                     <div className="qt-sync-dot"></div>
                     Last synced {lastSynced}
                 </div>
-            </div>
+            </main>
 
             {/* ── ALERTS PANEL ── */}
             <aside className="qt-alerts-panel">
