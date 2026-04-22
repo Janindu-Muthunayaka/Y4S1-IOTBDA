@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { ChatbotProvider as Driver_ChatbotProvider, useChatbot } from './Driver_Chatbot/Driver_ChatbotContext';
+import Driver_MrHodhaMaalu from './Driver_Chatbot/Driver_MrHodhaMaalu';
 
 const API_BASE = 'http://localhost:3001';
 
-export default function DriverDashboard() {
+function DriverDashboardContent() {
     const navigate = useNavigate();
     const [trips, setTrips] = useState([]);
     const [selectedTripId, setSelectedTripId] = useState('');
     const [sensorData, setSensorData] = useState(null);
     const [tripDetails, setTripDetails] = useState(null);
+    const { updateSnapshot } = useChatbot();
 
     // Fetch trips
     useEffect(() => {
@@ -51,7 +54,6 @@ export default function DriverDashboard() {
     let currentTemp = '--';
     let tempStatus = 'Waiting for data';
     let isTempSafe = true;
-    
     let shockEventsCount = 0;
     
     if (sensorData) {
@@ -86,6 +88,23 @@ export default function DriverDashboard() {
     const tempsArr = sensorData?.temperature_data || [];
     const time2 = tempsArr.length > 0 ? (isOutbound ? tempsArr[tempsArr.length - 1].time : tempsArr[0].time) : '--:--';
     const time3 = tripDetails?.status === 'COMPLETED' ? fmtT(sensorData?.last_updated || tripDetails?.updatedAt) : '--:--';
+
+    // Push data to chatbot
+    useEffect(() => {
+        if (tripDetails && sensorData) {
+            updateSnapshot({
+                trip: tripDetails,
+                sensorData: sensorData,
+                kpis: {
+                    qualityScore: 100 - (shockEventsCount * 2), // Simplified for driver
+                    tempCompliance: isTempSafe ? 100 : 0,
+                    shocks: sensorData.motion_data.filter(m => m.max_accel > 0.5),
+                    cold: sensorData.temperature_data.filter(t => Number(t.avg) < -22),
+                    hot: sensorData.temperature_data.filter(t => Number(t.avg) > -18)
+                }
+            });
+        }
+    }, [tripDetails, sensorData, shockEventsCount, isTempSafe, updateSnapshot]);
 
     return (
         <div style={{ 
@@ -293,6 +312,16 @@ export default function DriverDashboard() {
                 </div>
 
             </div>
+            
+            <Driver_MrHodhaMaalu />
         </div>
+    );
+}
+
+export default function DriverDashboard() {
+    return (
+        <Driver_ChatbotProvider>
+            <DriverDashboardContent />
+        </Driver_ChatbotProvider>
     );
 }

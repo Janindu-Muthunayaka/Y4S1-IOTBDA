@@ -34,6 +34,23 @@ const io = new SocketIOServer(httpServer, {
     }
 });
 
+// ─── Chatbot Config Helper ───────────────────────────────────────────────────
+const CHATBOT_BASE = path.join(__dirname, 'src', 'components');
+
+const getChatbotConfig = (role) => {
+    switch (role) {
+        case 'retailer': 
+            return { dir: path.join(CHATBOT_BASE, 'retailer', 'Retail_Chatbot'), prefix: 'Retail_' };
+        case 'owner': 
+            return { dir: path.join(CHATBOT_BASE, 'owner', 'Owner_Chatbot'), prefix: 'Owner_' };
+        case 'driver': 
+            return { dir: path.join(CHATBOT_BASE, 'driver', 'Driver_Chatbot'), prefix: 'Driver_' };
+        case 'qa': 
+        default: 
+            return { dir: path.join(CHATBOT_BASE, 'qa-inspector', 'Chatbot'), prefix: '' };
+    }
+};
+
 // ─── Helper: Build Full Payload for All Connected Clients ─────────────────────
 async function buildFullPayload() {
     try {
@@ -145,11 +162,13 @@ app.get('/api/dashboard/full', async (req, res) => {
 });
 
 // ─── Chatbot Storage API ──────────────────────────────────────────────────────
-const CHATBOT_DIR = path.join(__dirname, 'src', 'components', 'qa-inspector', 'Chatbot');
 
+// Legacy endpoints (backward compatibility)
 app.get('/api/chatbot/persona', (req, res) => {
+    const config = getChatbotConfig('qa');
+    const filePath = path.join(config.dir, 'Persona.txt');
     try {
-        const content = fs.readFileSync(path.join(CHATBOT_DIR, 'Persona.txt'), 'utf-8');
+        const content = fs.readFileSync(filePath, 'utf-8');
         res.json({ content });
     } catch (err) {
         res.status(500).json({ error: 'Failed to read Persona.txt: ' + err.message });
@@ -157,8 +176,10 @@ app.get('/api/chatbot/persona', (req, res) => {
 });
 
 app.get('/api/chatbot/pretext', (req, res) => {
+    const config = getChatbotConfig('qa');
+    const filePath = path.join(config.dir, 'Pretext.txt');
     try {
-        const content = fs.readFileSync(path.join(CHATBOT_DIR, 'Pretext.txt'), 'utf-8');
+        const content = fs.readFileSync(filePath, 'utf-8');
         res.json({ content });
     } catch (err) {
         res.status(500).json({ error: 'Failed to read Pretext.txt: ' + err.message });
@@ -166,11 +187,52 @@ app.get('/api/chatbot/pretext', (req, res) => {
 });
 
 app.post('/api/chatbot/pretext', (req, res) => {
+    const config = getChatbotConfig('qa');
+    const filePath = path.join(config.dir, 'Pretext.txt');
     try {
-        fs.writeFileSync(path.join(CHATBOT_DIR, 'Pretext.txt'), req.body.content, 'utf-8');
+        const { content } = req.body;
+        fs.writeFileSync(filePath, content, 'utf-8');
         res.json({ success: true, message: 'Pretext updated successfully' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to write Pretext.txt: ' + err.message });
+    }
+});
+
+// Multi-role endpoints
+app.get('/api/chatbot/:role/persona', (req, res) => {
+    const config = getChatbotConfig(req.params.role);
+    const filePath = path.join(config.dir, `${config.prefix}Persona.txt`);
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        res.json({ content });
+    } catch (err) {
+        res.status(500).json({ error: `Failed to read ${config.prefix}Persona.txt: ` + err.message });
+    }
+});
+
+app.get('/api/chatbot/:role/pretext', (req, res) => {
+    const config = getChatbotConfig(req.params.role);
+    const filePath = path.join(config.dir, `${config.prefix}Pretext.txt`);
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        res.json({ content });
+    } catch (err) {
+        res.status(500).json({ error: `Failed to read ${config.prefix}Pretext.txt: ` + err.message });
+    }
+});
+
+app.post('/api/chatbot/:role/pretext', (req, res) => {
+    const config = getChatbotConfig(req.params.role);
+    const filePath = path.join(config.dir, `${config.prefix}Pretext.txt`);
+    try {
+        const { content } = req.body;
+        if (!fs.existsSync(config.dir)) {
+            fs.mkdirSync(config.dir, { recursive: true });
+        }
+        fs.writeFileSync(filePath, content, 'utf-8');
+        res.json({ success: true, message: `${config.prefix}Pretext updated successfully` });
+    } catch (err) {
+        res.status(500).json({ error: `Failed to write ${config.prefix}Pretext.txt: ` + err.message });
     }
 });
 

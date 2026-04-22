@@ -2,6 +2,11 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+
+// Chatbot Imports (from remote branch)
+import { ChatbotProvider as Owner_ChatbotProvider, useChatbot } from './Owner_Chatbot/Owner_ChatbotContext';
+import Owner_MrHodhaMaalu from './Owner_Chatbot/Owner_MrHodhaMaalu';
+
 import './owner.css';
 import { OwnerHome } from './pages/OwnerHome';
 import OwnerTrucks from './pages/OwnerTrucks';
@@ -142,9 +147,8 @@ function OwnerTopBar({ connStatus, lastUpdated, tripCount, sensorCount }) {
   );
 }
 
-// ─── Main Dashboard Layout ────────────────────────────────────────────────────
-
-export default function OwnerDashboard() {
+// ─── Main Dashboard Content logic ──────────────────────────────────────────────
+function OwnerDashboardContent() {
   const [trips, setTrips] = useState([]);
   const [liveData, setLiveData] = useState({});   // { trip_id: sensorDoc }
   const [connStatus, setConnStatus] = useState('connecting');
@@ -152,6 +156,7 @@ export default function OwnerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const socketRef = useRef(null);
   const pollTimerRef = useRef(null);
+  const { updateSnapshot } = useChatbot();
 
   // ── Apply a full data payload (from socket or REST) ─────────────────────────
   const applyPayload = useCallback((payload) => {
@@ -166,28 +171,21 @@ export default function OwnerDashboard() {
   // ── REST API polling fallback ────────────────────────────────────────────────
   const pollFallback = useCallback(async () => {
     try {
-      // Use the new /api/dashboard/full endpoint — single round trip
       const res = await axios.get(`${API_BASE}/api/dashboard/full`);
       applyPayload(res.data);
+      setConnStatus('polling');
     } catch (err) {
       console.error('[Dashboard] Polling fallback failed:', err.message);
       setConnStatus('error');
     }
   }, [applyPayload]);
 
-  // ── Legacy per-trip sensor fetch (used by manual Refresh button) ─────────────
+  // ── Manual Refresh ───────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data: tripList } = await axios.get(`${API_BASE}/api/trips`);
-      const sensorMap = {};
-      await Promise.all(tripList.map(async trip => {
-        try {
-          const res = await axios.get(`${API_BASE}/api/trips/${trip.trip_id}/sensors`);
-          if (res.data?.sensorData) sensorMap[trip.trip_id] = res.data.sensorData;
-        } catch {}
-      }));
-      applyPayload({ trips: tripList, sensorMap });
+      const { data: payload } = await axios.get(`${API_BASE}/api/dashboard/full`);
+      applyPayload(payload);
     } catch (err) {
       console.error('[Dashboard] Manual refresh failed:', err.message);
     } finally {
@@ -207,11 +205,9 @@ export default function OwnerDashboard() {
     });
     socketRef.current = socket;
 
-    // ── Socket events ──────────────────────────────────────────────────────────
     socket.on('connect', () => {
       console.log('[Socket.io] ✅ Connected — real-time mode active');
       setConnStatus('live');
-      // Cancel polling fallback if socket is live
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
@@ -225,33 +221,74 @@ export default function OwnerDashboard() {
     });
 
     socket.on('connect_error', (err) => {
-      console.error('[Socket.io] Connection error:', err.message, '→ falling back to polling');
+      console.error('[Socket.io] Connection error:', err.message);
       setConnStatus('polling');
       startPollingFallback();
     });
 
-    // ── Main real-time data event ──────────────────────────────────────────────
     socket.on('data:full', (payload) => {
-      console.log(`[Socket.io] 📡 Received live update: ${payload?.trips?.length} trips, ${Object.keys(payload?.sensorMap || {}).length} sensor docs`);
+      console.log(`[Socket.io] 📡 Received live update: ${payload?.trips?.length} trips`);
       applyPayload(payload);
     });
 
-    // ── Cleanup on unmount ─────────────────────────────────────────────────────
     return () => {
       socket.disconnect();
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
   }, [applyPayload]);
 
-  // ── Polling fallback (starts if socket fails) ─────────────────────────────
   const startPollingFallback = useCallback(() => {
-    if (pollTimerRef.current) return; // Already polling
+    if (pollTimerRef.current) return;
     console.log(`[Dashboard] Starting polling fallback every ${POLL_INTERVAL_MS / 1000}s`);
-    pollFallback(); // Immediate first poll
+    pollFallback();
     pollTimerRef.current = setInterval(pollFallback, POLL_INTERVAL_MS);
   }, [pollFallback]);
 
-  // ── Critical alert count for sidebar badge ────────────────────────────────
+  // ── Update Chatbot Snapshot ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isLoading && trips.length > 0) {
+      // Calculate fleet metrics for chatbot
+      let totalQuality = 0;
+      let totalTemp = 0;
+      let tempCount = 0;
+      const alerts = [];
+
+      trips.forEach(t => {
+        const s = liveData[t.trip_id];
+        const temps = s?.temperature_data || [];
+        const motions = s?.motion_data || [];
+        
+        // Quality
+        let score = 100;
+        const latestTmp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
+        if (latestTmp !== null && latestTmp > -18) score -= 10;
+        score -= motions.filter(m => m.max_accel > 0.5).length * 2;
+        totalQuality += Math.max(0, score);
+
+        // Temp
+        if (latestTmp !== null) {
+          totalTemp += latestTmp;
+          tempCount++;
+        }
+
+        // Alerts
+        if (latestTmp > -18) alerts.push({ truck: t.truck_id, type: 'TEMP', val: latestTmp });
+        if (motions.some(m => m.max_accel > 0.5)) alerts.push({ truck: t.truck_id, type: 'SHOCK' });
+      });
+
+      updateSnapshot({
+        type: 'FLEET_STRATEGY_OVERVIEW',
+        totalTrips: trips.length,
+        activeTrips: trips.filter(t => t.status === 'ACTIVE').length,
+        fleetAvgQuality: (totalQuality / trips.length).toFixed(1),
+        fleetAvgTemp: tempCount > 0 ? (totalTemp / tempCount).toFixed(1) : '--',
+        alertsCount: alerts.length,
+        criticalAlerts: alerts
+      });
+    }
+  }, [isLoading, trips, liveData, updateSnapshot]);
+
+  // ── Calculations for UI ──────────────────────────────────────────────────────
   const critCount = trips.filter(trip => {
     const sensors = liveData[trip.trip_id];
     const temps = sensors?.temperature_data || [];
@@ -303,6 +340,15 @@ export default function OwnerDashboard() {
           )}
         </div>
       </div>
+      <Owner_MrHodhaMaalu />
     </div>
+  );
+}
+
+export default function OwnerDashboard() {
+  return (
+    <Owner_ChatbotProvider>
+      <OwnerDashboardContent />
+    </Owner_ChatbotProvider>
   );
 }
