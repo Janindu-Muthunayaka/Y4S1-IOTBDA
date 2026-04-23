@@ -15,6 +15,7 @@ import QA_Timeline from './components/qa-inspector/QA_Timeline';
 import DriverDashboard from './components/driver/DriverDashboard';
 import DriverTemperature from './components/driver/DriverTemperature';
 import DriverShocks from './components/driver/DriverShocks';
+import DriverNotifications from './components/driver/DriverNotifications';
 import OwnerDashboard from './components/owner/OwnerDashboard';
 import RetailerDashboard from './components/retailer/RetailerDashboard';
 
@@ -93,6 +94,7 @@ function MainLayout() {
             <Route path="/driver/dashboard" element={<DriverDashboard />} />
             <Route path="/driver/temperature" element={<DriverTemperature />} />
             <Route path="/driver/shocks" element={<DriverShocks />} />
+            <Route path="/driver/notifications" element={<DriverNotifications />} />
             
             <Route path="/owner" element={<OwnerLanding />} />
             <Route path="/owner/*" element={<OwnerDashboard />} />

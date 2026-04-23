@@ -500,3 +500,108 @@
   flex-shrink: 0;
   margin-top: 1px;
 }
+
+/* ═══════════════════════════════════════════
+   Notifications Page Specific Styles (dn = driver-notif)
+   ═══════════════════════════════════════════ */
+
+.dn-icon-btn {
+  width: 28px;
+  height: 28px;
+  background: #f5f6fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dn-critical-pill {
+  background: #ff3b30;
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.dn-ok-pill {
+  background: #30d158;
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.dn-priority-pill {
+  border-radius: 20px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  height: fit-content;
+}
+
+.dn-priority-pill.critical { background: #ff3b30; }
+.dn-priority-pill.ok       { background: #30d158; }
+
+.dn-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dn-stat-box {
+  background: #f5f6fa;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.dn-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dn-stat-label span {
+  font-size: 10px;
+  color: #aaa;
+  font-weight: 600;
+}
+
+.dn-stat-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: #111;
+}
+
+.dn-alert-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  border-left: 4px solid #ddd;
+}
+
+.dn-alert-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

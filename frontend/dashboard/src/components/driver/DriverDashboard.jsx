@@ -149,7 +149,7 @@ function DriverDashboardContent() {
                                 <span>Shocks</span>
                             </div>
 
-                            <div className="driver-nav-item" style={{ position: 'relative' }}>
+                            <div className="driver-nav-item" onClick={() => navigate('/driver/notifications')} style={{ position: 'relative', cursor: 'pointer' }}>
                                 <div style={{ position: 'relative', display: 'inline-block' }}>
                                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
