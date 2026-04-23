@@ -110,7 +110,7 @@ function DriverDashboardContent() {
     return (
         <div className="driver-dashboard-wrapper">
             <div className="driver-phone-frame">
-                <div className="driver-status-bar">Driver – Dashboard</div>
+                <div className="driver-status-bar"></div>
                 <div className="driver-screen">
                     <div className="driver-dynamic-island"></div>
                     <div className="driver-inner-scroll">
@@ -135,7 +135,7 @@ function DriverDashboardContent() {
                                 <span>Dashboard</span>
                             </div>
 
-                            <div className="driver-nav-item">
+                            <div className="driver-nav-item" onClick={() => navigate('/driver/temperature')} style={{ cursor: 'pointer' }}>
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
                                 </svg>

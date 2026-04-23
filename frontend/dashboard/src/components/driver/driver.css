@@ -351,3 +351,80 @@
 .driver-step-line.active-to-pending {
   background: #d1d1d6;
 }
+
+/* ═══════════════════════════════════════════
+   Temperature Page Specific Styles (dt = driver-temp)
+   ═══════════════════════════════════════════ */
+
+.dt-sensor-select {
+  background: #2c2c2e;
+  border-radius: 20px;
+  padding: 6px 12px;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-temp-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.dt-temp-badge.safe {
+  background: #e8faf0;
+  border-color: #30d158;
+  color: #30d158;
+}
+
+.dt-temp-badge.danger {
+  background: #fef2f2;
+  border-color: #ff3b30;
+  color: #ff3b30;
+}
+
+.dt-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dt-stat-card {
+  background: #f7f7f9;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.dt-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.dt-stat-label span {
+  font-size: 9px;
+  color: #8e8e93;
+  font-weight: 500;
+}
+
+.dt-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1c1c1e;
+  line-height: 1;
+}
