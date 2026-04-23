@@ -90,7 +90,7 @@ export default function OwnerReports({ trips, liveData }) {
           <div className="owner-card__body">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem', color: '#374151' }}>
                   <span style={{ fontWeight: 600 }}>🔵 Outbound</span>
                   <span style={{ fontWeight: 700 }}>{outbound}</span>
                 </div>
@@ -99,7 +99,7 @@ export default function OwnerReports({ trips, liveData }) {
                 </div>
               </div>
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem', color: '#374151' }}>
                   <span style={{ fontWeight: 600 }}>🟣 Inbound</span>
                   <span style={{ fontWeight: 700 }}>{inbound}</span>
                 </div>
@@ -108,7 +108,7 @@ export default function OwnerReports({ trips, liveData }) {
                 </div>
               </div>
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem', color: '#374151' }}>
                   <span style={{ fontWeight: 600 }}>✅ Completed</span>
                   <span style={{ fontWeight: 700 }}>{completedTrips.length}</span>
                 </div>
