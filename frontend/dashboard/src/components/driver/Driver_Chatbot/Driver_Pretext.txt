@@ -1,0 +1,14 @@
+DASHBOARD SNAPSHOT CONTENT:
+Trip ID: TRIP_1774179592114
+Truck: 4021C561
+Status: ACTIVE
+Quality Score: 100/100
+Temperature Compliance: 100%
+
+SUMMARY OF ANOMALIES:
+- Shock Events: 0
+- Cold Violations: 0
+- Hot Violations: 0
+
+DETAILED VIOLATION TIMES (Threshold Crosses):
+No threshold violations recorded. Clean run.

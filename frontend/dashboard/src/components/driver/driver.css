@@ -1,0 +1,353 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+.driver-dashboard-wrapper {
+  background: #1a1a1a;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  height: 100vh;
+  font-family: 'DM Sans', sans-serif;
+  width: 100%;
+  padding: 16px 0;
+  box-sizing: border-box;
+}
+
+.driver-phone-frame {
+  width: 390px;
+  height: 100%;
+  background: #1c1c1e;
+  border-radius: 40px;
+  padding: 10px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.driver-status-bar {
+  text-align: center;
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.driver-screen {
+  background: #f2f2f7;
+  border-radius: 34px;
+  overflow: hidden;
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.driver-dynamic-island {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 34px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 10;
+}
+
+.driver-inner-scroll {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.driver-sidebar {
+  width: 72px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 80px;
+  padding-bottom: 20px;
+  gap: 0;
+  flex-shrink: 0;
+  border-right: 1px solid #e8e8ec;
+}
+
+.driver-avatar-container {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.driver-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #c8a882;
+  overflow: hidden;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.driver-avatar-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+
+.driver-avatar-role {
+  font-size: 9px;
+  color: #8e8e93;
+}
+
+.driver-divider {
+  width: 40px;
+  height: 1px;
+  background: #e8e8ec;
+  margin-bottom: 16px;
+}
+
+.driver-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  margin-bottom: 6px;
+  width: 56px;
+  cursor: pointer;
+  border-radius: 14px;
+}
+
+.driver-nav-item.active {
+  background: #f0f0ff;
+}
+
+.driver-nav-item span {
+  font-size: 8.5px;
+  color: #8e8e93;
+}
+
+.driver-nav-item.active span {
+  color: #4a4aff;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.driver-nav-icon {
+  stroke: #8e8e93;
+}
+
+.driver-nav-item.active .driver-nav-icon {
+  stroke: #4a4aff;
+}
+
+.driver-main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 58px 14px 20px 14px;
+  background: #f2f2f7;
+}
+
+/* Hide scrollbar for main content */
+.driver-main-content::-webkit-scrollbar {
+  display: none;
+}
+
+.driver-main-content {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.driver-header-subtitle {
+  font-size: 11px;
+  color: #4a4aff;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.driver-header-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1c1c1e;
+  margin-bottom: 14px;
+}
+
+.driver-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.driver-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1c1e;
+  margin-bottom: 10px;
+}
+
+.driver-flex-row {
+  display: flex;
+  gap: 10px;
+}
+
+.driver-condition-card {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.driver-condition-title {
+  font-size: 10px;
+  color: #8e8e93;
+  margin-bottom: 10px;
+}
+
+.driver-alert-success {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.driver-alert-warning {
+  background: #fffbf0;
+  border: 1px solid #ffd580;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.driver-dropdown {
+  background: #e8e8ed;
+  border-radius: 20px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1c1c1e;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  appearance: none;
+}
+
+.driver-trip-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff8ec;
+  border: 1px solid #ffd580;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.driver-trip-badge.completed {
+  background: #e8faf0;
+  border-color: #30d158;
+}
+
+.driver-trip-badge-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e0900a;
+}
+
+.driver-trip-badge.completed .driver-trip-badge-text {
+  color: #30d158;
+}
+
+/* Progress steps */
+.driver-progress-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.driver-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.driver-step-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.driver-step-circle.done {
+  background: #30d158;
+}
+
+.driver-step-circle.active {
+  background: #1c1c1e;
+  border: 3px solid #1c1c1e;
+  box-shadow: 0 0 0 3px #f2f2f7, 0 0 0 5px #1c1c1e;
+}
+
+.driver-step-circle.pending {
+  background: #d1d1d6;
+}
+
+.driver-step-text {
+  font-size: 8px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.driver-step-text.done {
+  color: #30d158;
+}
+
+.driver-step-text.active {
+  color: #1c1c1e;
+  font-weight: 700;
+}
+
+.driver-step-text.pending {
+  color: #8e8e93;
+}
+
+.driver-step-line {
+  flex: 1;
+  height: 2px;
+  margin-top: -12px;
+}
+
+.driver-step-line.done {
+  background: #30d158;
+}
+
+.driver-step-line.pending {
+  background: #d1d1d6;
+}
+
+.driver-step-line.active-to-pending {
+  background: #d1d1d6;
+}
