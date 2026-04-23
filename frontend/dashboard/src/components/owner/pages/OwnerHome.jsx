@@ -69,12 +69,12 @@ export function Gauge({ value = 68, size = 190 }) {
       <svg width={size} height={size * 0.66} viewBox={`0 0 ${size} ${size * 0.66}`}>
         {/* Track */}
         <path d={arc(radius, -215, 35)} fill="none" stroke="#e5e7eb" strokeWidth={11} strokeLinecap="round" />
-        {/* Green */}
-        <path d={arc(radius, -215, -122)} fill="none" stroke="#059669" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
-        {/* Yellow */}
-        <path d={arc(radius, -122, -29)} fill="none" stroke="#d97706" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
-        {/* Red */}
-        <path d={arc(radius, -29, 35)} fill="none" stroke="#dc2626" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
+        {/* Red (Critical: 0-54%) */}
+        <path d={arc(radius, -215, -77)} fill="none" stroke="#dc2626" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
+        {/* Yellow (Warning: 55-79%) */}
+        <path d={arc(radius, -77, -15)} fill="none" stroke="#d97706" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
+        {/* Green (Safe: 80-100%) */}
+        <path d={arc(radius, -15, 35)} fill="none" stroke="#059669" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
         {/* Needle */}
         <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#374151" strokeWidth={2.5} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={6} fill="#374151" />
@@ -83,9 +83,9 @@ export function Gauge({ value = 68, size = 190 }) {
         <text x={cx} y={cy + 26} textAnchor="middle" fontSize={16} fontWeight={900} fontFamily="Inter" fill="#111827">{value}%</text>
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '88%', marginTop: '-0.25rem' }}>
-        <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 700 }}>Safe</span>
-        <span style={{ fontSize: '0.62rem', color: '#d97706', fontWeight: 700 }}>Warning</span>
         <span style={{ fontSize: '0.62rem', color: '#dc2626', fontWeight: 700 }}>Critical</span>
+        <span style={{ fontSize: '0.62rem', color: '#d97706', fontWeight: 700 }}>Warning</span>
+        <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 700 }}>Safe</span>
       </div>
       <div style={{ fontSize: '0.8rem', fontWeight: 800, color, letterSpacing: '-0.01em' }}>{label}</div>
     </div>
@@ -111,7 +111,18 @@ const baseChartOpts = {
 
 // ─── OwnerHome Page ───────────────────────────────────────────────────────────
 export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus }) {
-  const enriched = trips.map(trip => {
+  const [truckFilter, setTruckFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const uniqueTrucks = [...new Set(trips.map(t => t.truck_id))];
+
+  const baseFilteredTrips = trips.filter(t => {
+    if (truckFilter !== 'all' && t.truck_id !== truckFilter) return false;
+    if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+    return true;
+  });
+
+  const enriched = baseFilteredTrips.map(trip => {
     const sensors = liveData[trip.trip_id];
     const temps = sensors?.temperature_data || [];
     const motions = sensors?.motion_data || [];
@@ -123,7 +134,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     return { ...trip, currentTemp, shockEvents, maxShock, quality, status };
   });
 
-  const activeFull = enriched.filter(t => trips.find(x => x.trip_id === t.trip_id)?.status === 'ACTIVE');
+  const activeFull = enriched.filter(t => baseFilteredTrips.find(x => x.trip_id === t.trip_id)?.status === 'ACTIVE');
   const critCount = enriched.filter(t => t.status === 'crit').length;
   const warnCount = enriched.filter(t => t.status === 'warn').length;
   const allTemps = activeFull.filter(t => t.currentTemp !== null).map(t => t.currentTemp);
@@ -133,14 +144,29 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
 
   // Temp trend
   const timeBuckets = {};
-  Object.values(liveData).forEach(s => {
-    (s?.temperature_data || []).forEach(t => {
-      if (!timeBuckets[t.time]) timeBuckets[t.time] = { sum: 0, n: 0 };
-      timeBuckets[t.time].sum += Number(t.avg);
-      timeBuckets[t.time].n++;
-    });
+  baseFilteredTrips.forEach(trip => {
+    const s = liveData[trip.trip_id];
+    if (s && s.temperature_data) {
+      s.temperature_data.forEach(t => {
+        if (!timeBuckets[t.time]) timeBuckets[t.time] = { sum: 0, n: 0 };
+        timeBuckets[t.time].sum += Number(t.avg);
+        timeBuckets[t.time].n++;
+      });
+    }
   });
-  const times = Object.keys(timeBuckets).sort().slice(-20);
+
+  const parseTo24H = (timeStr) => {
+    if (!timeStr) return "00:00";
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return timeStr;
+    let [_, h, m, mod] = match;
+    h = parseInt(h, 10);
+    if (h === 12) h = 0;
+    if (mod.toUpperCase() === 'PM') h += 12;
+    return `${h.toString().padStart(2, '0')}:${m}`;
+  };
+
+  const times = Object.keys(timeBuckets).sort((a, b) => parseTo24H(a).localeCompare(parseTo24H(b))).slice(-30);
   const tempVals = times.map(t => (timeBuckets[t].sum / timeBuckets[t].n).toFixed(2));
 
   const tempChartData = {
@@ -148,19 +174,20 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     datasets: [{
       label: 'Fleet Avg Temp (°C)',
       data: tempVals.length > 0 ? tempVals : [0],
-      borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.06)',
-      fill: true, tension: 0.4, borderWidth: 2.5,
+      borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)',
+      fill: true, tension: 0.1, borderWidth: 2.5,
       pointRadius: 3, pointBackgroundColor: '#3b82f6', pointBorderColor: '#fff', pointBorderWidth: 2,
     }]
   };
 
   // Vibration
   const shockRecords = [];
-  trips.slice(0, 12).forEach(t => {
+  baseFilteredTrips.slice(0, 12).forEach(t => {
     const s = liveData[t.trip_id];
     if (s?.motion_data?.length > 0) {
       const mx = Math.max(...s.motion_data.map(m => m.max_accel));
-      shockRecords.push({ label: t.truck_id, max: mx });
+      // Append a short trip ID suffix so multiple trips for the same truck are distinguishable
+      shockRecords.push({ label: `${t.truck_id} (..${t.trip_id.slice(-4)})`, max: mx });
     }
   });
   const vibChartData = {
@@ -182,7 +209,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     {
       label: 'Active Trucks', value: activeFull.length,
       icon: '🚛', iconBg: '#eff6ff', color: '#3b82f6',
-      sub: `${trips.filter(t => t.status === 'COMPLETED').length} completed today`, subColor: '#059669'
+      sub: `${baseFilteredTrips.filter(t => t.status === 'COMPLETED').length} completed today`, subColor: '#059669'
     },
     {
       label: 'Critical Alerts', value: critCount,
@@ -235,8 +262,27 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
       {/* Filter bar */}
       <div className="owner-filterbar">
         <div className="owner-filter-chip">📅 {today}</div>
-        <div className="owner-filter-chip owner-filter-chip--active">🚛 All Trucks ▾</div>
-        <div className="owner-filter-chip">📋 All Trips ▾</div>
+        
+        <select 
+          className={`owner-filter-chip ${truckFilter !== 'all' ? 'owner-filter-chip--active' : ''}`}
+          value={truckFilter}
+          onChange={(e) => setTruckFilter(e.target.value)}
+          style={{ appearance: 'auto', outline: 'none', cursor: 'pointer' }}
+        >
+          <option value="all">🚛 All Trucks</option>
+          {uniqueTrucks.map(id => <option key={id} value={id}>🚛 {id}</option>)}
+        </select>
+
+        <select 
+          className={`owner-filter-chip ${statusFilter !== 'all' ? 'owner-filter-chip--active' : ''}`}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ appearance: 'auto', outline: 'none', cursor: 'pointer' }}
+        >
+          <option value="all">📋 All Trips</option>
+          <option value="ACTIVE">🟢 Active Trips</option>
+          <option value="COMPLETED">⚪ Completed Trips</option>
+        </select>
       </div>
 
       {/* KPIs */}
@@ -261,9 +307,9 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
         </div>
         <div className="owner-card__body">
           <div style={{ position: 'relative', height: 270 }}>
-            {/* Critical zone overlay */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '32%', background: 'linear-gradient(180deg,rgba(220,38,38,0.05) 0%,transparent 100%)', borderTop: '1.5px dashed rgba(220,38,38,0.4)', zIndex: 1, pointerEvents: 'none' }}>
-              <span style={{ color: '#dc2626', fontSize: '0.67rem', fontWeight: 700, padding: '0.25rem 0.5rem', opacity: 0.8 }}>CRITICAL ZONE (&gt;-18°C)</span>
+            {/* Critical zone overlay: Y scale goes from 5 to -30 (range 35). -18 is 23 units down from 5. 23/35 = 65.7% height */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '65.7%', background: 'linear-gradient(180deg, rgba(220,38,38,0.08) 0%, rgba(220,38,38,0.02) 100%)', borderBottom: '1.5px dashed rgba(220,38,38,0.4)', zIndex: 1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <span style={{ color: '#dc2626', fontSize: '0.67rem', fontWeight: 700, padding: '0.25rem 0.5rem', opacity: 0.8, alignSelf: 'flex-start' }}>CRITICAL ZONE (&gt;-18°C)</span>
             </div>
             <Line data={tempChartData} options={{ ...baseChartOpts, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, min: -30, max: 5, ticks: { ...baseChartOpts.scales.y.ticks, callback: v => `${v}°` } } } }} />
           </div>

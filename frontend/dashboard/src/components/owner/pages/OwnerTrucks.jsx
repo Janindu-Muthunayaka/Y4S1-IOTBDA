@@ -145,7 +145,7 @@ export default function OwnerTrucks({ trips, liveData }) {
             </thead>
             <tbody>
               {trips.slice(0, 20).map(trip => (
-                <tr key={trip.trip_id} onClick={() => navigate(`/owner/trucks/${trip.truck_id}`)}>
+                <tr key={trip.trip_id} onClick={() => navigate(`/owner/trucks/${trip.truck_id}?trip=${trip.trip_id}`)} style={{ cursor: 'pointer' }}>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{trip.trip_id.slice(0, 16)}…</td>
                   <td>{trip.truck_id}</td>
                   <td>

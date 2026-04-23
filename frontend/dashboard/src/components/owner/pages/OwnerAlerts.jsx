@@ -11,44 +11,44 @@ function buildAlerts(trips, liveData) {
     const motions = sensors?.motion_data || [];
     const quality = computeQuality(sensors);
 
-    // Check every temperature reading for breaches
-    temps.forEach(t => {
-      const val = Number(t.avg);
-      if (val > -18) {
-        alerts.push({
-          id: `temp-${trip.trip_id}-${t.time}`,
-          type: 'crit',
-          category: 'temperature',
-          kind: 'High Temperature',
-          truck_id: trip.truck_id,
-          trip_id: trip.trip_id,
-          time: sensors?.last_updated || trip.timestamp,
-          timeLabel: t.time,
-          desc: `Temperature reached ${val.toFixed(1)}°C — safe limit is ≤ -18°C`,
-          icon: '🌡️',
-          value: `${val.toFixed(1)}°C`,
-        });
-      }
-    });
+    // Temperature Breach (aggregate to 1 per trip)
+    const critTemps = temps.filter(t => Number(t.avg) > -18);
+    if (critTemps.length > 0) {
+      const maxTempReading = critTemps.reduce((max, t) => Number(t.avg) > Number(max.avg) ? t : max, critTemps[0]);
+      const maxVal = Number(maxTempReading.avg);
+      alerts.push({
+        id: `temp-${trip.trip_id}`,
+        type: 'crit',
+        category: 'temperature',
+        kind: 'High Temperature',
+        truck_id: trip.truck_id,
+        trip_id: trip.trip_id,
+        time: sensors?.last_updated || trip.timestamp,
+        timeLabel: maxTempReading.time,
+        desc: `Temperature breached safe threshold for ${critTemps.length} readings, peaking at ${maxVal.toFixed(1)}°C.`,
+        icon: '🌡️',
+        value: `${maxVal.toFixed(1)}°C`,
+      });
+    }
 
-    // Vibration spikes
-    motions.forEach(m => {
-      if (m.max_accel > 0.5) {
-        alerts.push({
-          id: `vib-${trip.trip_id}-${m.time}`,
-          type: 'warn',
-          category: 'vibration',
-          kind: 'Vibration Spike',
-          truck_id: trip.truck_id,
-          trip_id: trip.trip_id,
-          time: sensors?.last_updated || trip.timestamp,
-          timeLabel: m.time,
-          desc: `Accelerometer registered ${m.max_accel.toFixed(2)}g force spike`,
-          icon: '⚡',
-          value: `${m.max_accel.toFixed(2)}g`,
-        });
-      }
-    });
+    // Vibration spikes (aggregate to 1 per trip)
+    const shockMotions = motions.filter(m => m.max_accel > 0.5);
+    if (shockMotions.length > 0) {
+      const maxMotion = shockMotions.reduce((max, m) => m.max_accel > max.max_accel ? m : max, shockMotions[0]);
+      alerts.push({
+        id: `vib-${trip.trip_id}`,
+        type: 'warn',
+        category: 'vibration',
+        kind: 'Vibration Spikes',
+        truck_id: trip.truck_id,
+        trip_id: trip.trip_id,
+        time: sensors?.last_updated || trip.timestamp,
+        timeLabel: maxMotion.time,
+        desc: `Registered ${shockMotions.length} significant force spikes (peak: ${maxMotion.max_accel.toFixed(2)}g).`,
+        icon: '⚡',
+        value: `${maxMotion.max_accel.toFixed(2)}g`,
+      });
+    }
 
     // Weight anomaly
     if (trip.weight1 != null && trip.weight2 != null && trip.weight1 > 0) {

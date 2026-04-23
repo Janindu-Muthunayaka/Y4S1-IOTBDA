@@ -51,7 +51,7 @@ export default function OwnerReports({ trips, liveData }) {
     { label: 'This Week', value: weekTrips.length, icon: '📅', color: '#8b5cf6', bg: '#f5f3ff' },
     { label: 'This Month', value: monthTrips.length, icon: '🗓', color: '#f59e0b', bg: '#fffbeb' },
     { label: 'Avg Quality', value: `${avgQuality}%`, icon: '⭐', color: '#ec4899', bg: '#fdf2f8' },
-    { label: 'Active Trucks', value: uniqueTrucks.length, icon: '🚛', color: '#06b6d4', bg: '#ecfeff' },
+    { label: 'Registered Trucks', value: uniqueTrucks.length, icon: '🚛', color: '#06b6d4', bg: '#ecfeff' },
   ];
 
   return (
