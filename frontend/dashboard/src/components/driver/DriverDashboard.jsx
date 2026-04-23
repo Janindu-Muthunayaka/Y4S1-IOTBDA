@@ -142,7 +142,7 @@ function DriverDashboardContent() {
                                 <span>Temp</span>
                             </div>
 
-                            <div className="driver-nav-item">
+                            <div className="driver-nav-item" onClick={() => navigate('/driver/shocks')} style={{ cursor: 'pointer' }}>
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" />
                                 </svg>
