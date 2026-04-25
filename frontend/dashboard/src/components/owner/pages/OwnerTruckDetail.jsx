@@ -54,8 +54,8 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   const quality = computeQuality(sensorData);
   const status = riskStatus(quality);
 
-  const w1 = latestTrip?.weight1;
-  const w2 = latestTrip?.weight2;
+  const w1 = latestTrip?.startWeight ?? latestTrip?.weight1;
+  const w2 = latestTrip?.endWeight ?? latestTrip?.weight2;
   const weightLoss = (w1 != null && w2 != null && w1 > 0) ? (((w1 - w2) / w1) * 100).toFixed(1) : null;
 
   const isActive = latestTrip?.status === 'ACTIVE';

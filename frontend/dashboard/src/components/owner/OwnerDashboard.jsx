@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import logo from '../../assets/logo.svg';
 
 // Chatbot Imports (from remote branch)
 import { ChatbotProvider as Owner_ChatbotProvider, useChatbot } from './Owner_Chatbot/Owner_ChatbotContext';
@@ -61,7 +62,7 @@ function OwnerSidebar({ critCount }) {
   return (
     <div className="owner-sidebar">
       <div className="owner-sidebar__logo">
-        <div className="owner-sidebar__logo-icon">CL</div>
+        <img src={logo} alt="Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
         <div>
           <div className="owner-sidebar__logo-text">CargoLink</div>
           <div className="owner-sidebar__logo-sub">Owner Portal</div>

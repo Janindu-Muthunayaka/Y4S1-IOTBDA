@@ -153,8 +153,18 @@ export default function OwnerTrucks({ trips, liveData }) {
                       {trip.trip_direction || 'N/A'}
                     </span>
                   </td>
-                  <td>{trip.weight1 != null ? `${trip.weight1} kg` : '--'}</td>
-                  <td>{trip.weight2 != null ? `${trip.weight2} kg` : '--'}</td>
+                  <td>
+                    {(() => {
+                      const w1 = trip.startWeight ?? trip.weight1;
+                      return w1 != null ? `${w1} kg` : '--';
+                    })()}
+                  </td>
+                  <td>
+                    {(() => {
+                      const w2 = trip.endWeight ?? trip.weight2;
+                      return w2 != null ? `${w2} kg` : '--';
+                    })()}
+                  </td>
                   <td style={{ color: '#6b7280' }}>
                     {trip.timestamp ? new Date(trip.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
                   </td>

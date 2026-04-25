@@ -1,12 +1,13 @@
 FLEET DASHBOARD SNAPSHOT:
-Total Trips Monitored: 4
+Total Trips Monitored: 6
 Active Trips: 0
-Average Fleet Quality Score: 86.2/100
-Average Fleet Temperature: -18.1°C
-Total Alerts Active: 4
+Average Fleet Quality Score: 94.1/100
+Average Fleet Temperature: -18.3°C
+Total Alerts Active: 5
 
 CRITICAL FLEET ALERTS:
-- Truck C3809540: TEMP Alert 
-- Truck C3809540: TEMP Alert 
+- Truck C3809540: TEMP Alert (-17.1°C)
+- Truck C3809540: SHOCK Alert 
+- Truck C3809540: SHOCK Alert 
 - Truck C3809540: TEMP Alert (-17.6°C)
 - Truck C3809540: SHOCK Alert 

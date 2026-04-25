@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import logo from './assets/logo.svg';
 import { ChatbotProvider } from './components/qa-inspector/Chatbot/ChatbotContext';
 import MrHodhaMaalu from './components/qa-inspector/Chatbot/MrHodhaMaalu';
 import TripsTable from './components/TripsTable';
@@ -34,7 +35,10 @@ function Sidebar() {
 
   return (
     <div style={{ width: '240px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <h2 style={{ color: 'var(--accent-cyan)', marginBottom: '2rem', fontSize: '1.5rem', textAlign: 'center' }}>CargoLink Hub</h2>
+      <h2 style={{ color: 'var(--accent-cyan)', marginBottom: '2rem', fontSize: '1.5rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+        <img src={logo} alt="CargoLink" style={{ width: '32px', height: '32px' }} />
+        CargoLink Hub
+      </h2>
       <Link to="/" style={{ color: 'var(--text-primary)', textDecoration: 'none', padding: '0.75rem', borderRadius: '8px', background: location.pathname === '/' ? 'rgba(255,255,255,0.1)' : 'transparent', fontWeight: 600, transition: 'background 0.2s' }}>
         📊 Dashboard
       </Link>

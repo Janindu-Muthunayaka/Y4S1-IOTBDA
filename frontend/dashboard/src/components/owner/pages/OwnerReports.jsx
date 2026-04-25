@@ -13,8 +13,10 @@ export default function OwnerReports({ trips, liveData }) {
   const enriched = useMemo(() => trips.map(trip => {
     const sensors = liveData[trip.trip_id];
     const quality = computeQuality(sensors);
-    const wLoss = (trip.weight1 != null && trip.weight2 != null && trip.weight1 > 0)
-      ? ((trip.weight1 - trip.weight2) / trip.weight1 * 100).toFixed(1)
+    const w1 = trip.startWeight ?? trip.weight1;
+    const w2 = trip.endWeight ?? trip.weight2;
+    const wLoss = (w1 != null && w2 != null && w1 > 0)
+      ? ((w1 - w2) / w1 * 100).toFixed(1)
       : null;
     return { ...trip, quality, wLoss };
   }), [trips, liveData]);
@@ -34,7 +36,7 @@ export default function OwnerReports({ trips, liveData }) {
     const headers = ['Trip ID', 'Truck ID', 'Direction', 'Start Weight (kg)', 'End Weight (kg)', 'Status', 'Quality Score', 'Started At'];
     const rows = enriched.map(t => [
       t.trip_id, t.truck_id, t.trip_direction || 'N/A',
-      t.weight1 ?? '', t.weight2 ?? '',
+      t.startWeight ?? t.weight1 ?? '', t.endWeight ?? t.weight2 ?? '',
       t.status, t.quality + '%',
       t.timestamp ? new Date(t.timestamp).toLocaleString() : ''
     ]);
@@ -179,8 +181,18 @@ export default function OwnerReports({ trips, liveData }) {
                   <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{t.trip_id.slice(0, 14)}…</td>
                   <td style={{ fontWeight: 700 }}>{t.truck_id}</td>
                   <td><span className={`o-badge ${t.trip_direction === 'OUTBOUND' ? 'o-badge--info' : 'o-badge--neutral'}`}>{t.trip_direction || 'N/A'}</span></td>
-                  <td>{t.weight1 != null ? `${t.weight1} kg` : '--'}</td>
-                  <td>{t.weight2 != null ? `${t.weight2} kg` : '--'}</td>
+                  <td>
+                    {(() => {
+                      const w1 = t.startWeight ?? t.weight1;
+                      return w1 != null ? `${w1} kg` : '--';
+                    })()}
+                  </td>
+                  <td>
+                    {(() => {
+                      const w2 = t.endWeight ?? t.weight2;
+                      return w2 != null ? `${w2} kg` : '--';
+                    })()}
+                  </td>
                   <td style={{ color: t.wLoss !== null && parseFloat(t.wLoss) > 5 ? '#ef4444' : '#10b981' }}>
                     {t.wLoss !== null ? `${t.wLoss}%` : '--'}
                   </td>
