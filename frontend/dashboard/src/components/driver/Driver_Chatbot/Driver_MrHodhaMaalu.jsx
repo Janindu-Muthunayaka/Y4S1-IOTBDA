@@ -105,7 +105,6 @@ export default function MrHodhaMaalu() {
             pretext += `Current Temperature: ${currentTemp}\n`;
             pretext += `Current Shock Status: ${shockLevel}\n`;
             pretext += `Cargo Weight Status: ${weightMatch}\n`;
-            pretext += `RFID Status: Warehouse Verified\n`;
         }
         else {
             // Main Dashboard
@@ -124,7 +123,6 @@ export default function MrHodhaMaalu() {
             } else {
                 pretext += `- Weight Data: Pending/Unavailable\n`;
             }
-            pretext += `- RFID Status: Warehouse Verified\n\n`;
 
             pretext += `REAL-TIME SENSORS:\n`;
             pretext += `- Current Temperature: ${currentTemp}\n`;
