@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+
+
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement,
   Title, Tooltip, Legend, Filler
@@ -402,9 +404,10 @@ function RetailerDashboardContent() {
 }
 
 export default function RetailerDashboard() {
-    return (
-        <Retail_ChatbotProvider>
-            <RetailerDashboardContent />
-        </Retail_ChatbotProvider>
-    );
+  return (
+    <Retail_ChatbotProvider>
+      <RetailerDashboardContent />
+      <Retail_MrHodhaMaalu />
+    </Retail_ChatbotProvider>
+  );
 }
