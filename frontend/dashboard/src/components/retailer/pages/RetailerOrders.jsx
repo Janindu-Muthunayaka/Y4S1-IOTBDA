@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useChatbot } from '../Retail_Chatbot/Retail_ChatbotContext';
 
 // ── Shared sidebar icons ────────────────────────────────────────────────────
 const GridIcon = () => (
@@ -94,11 +95,21 @@ function OrdersPage() {
   const [compareMode, setCompareMode] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState("TRP-2048");
+  const { updateSnapshot } = useChatbot();
 
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    updateSnapshot({
+      type: 'ORDERS_PAGE',
+      totalOrders: ALL_ORDERS.length,
+      selectedOrder: selectedOrder,
+      orders: ALL_ORDERS
+    });
+  }, [updateSnapshot, selectedOrder]);
 
   const filteredOrders = useMemo(() => {
     return ALL_ORDERS.filter(o => {
