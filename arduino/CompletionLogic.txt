@@ -1,0 +1,35 @@
+# Constants for gate activity
+GATE_EXIT = "EXIT"
+GATE_ENTRY = "ENTRY"
+
+def handle_gate_event(truck, event_type):
+    # Check if data was received in the last 5 seconds to determine trip type
+    is_transmitting = truck.last_data_received_seconds <= 5
+
+    # --- SCENARIO A: OUTGOING TRIP (DELIVERY) ---
+    if event_type == GATE_EXIT and is_transmitting:
+        truck.trip_type = "OUTGOING"
+        truck.status = "Out for Delivery"
+    
+    elif truck.trip_type == "OUTGOING":
+        if truck.button_pressed: # Button stops recording
+            truck.status = "Delivered and returning"
+            truck.stop_recording()
+        
+        if event_type == GATE_ENTRY:
+            truck.status = "Complete"
+            truck.close_trip()
+
+    # --- SCENARIO B: INCOMING TRIP (PICKUP) ---
+    elif event_type == GATE_EXIT and not is_transmitting:
+        truck.trip_type = "INCOMING"
+        truck.status = "Out to Pickup"
+
+    elif truck.trip_type == "INCOMING":
+        if truck.button_pressed: # Button starts recording
+            truck.status = "Reached pickup location and loading"
+            truck.start_recording()
+
+        if event_type == GATE_ENTRY:
+            truck.status = "Complete"
+            truck.close_trip()

@@ -1,262 +1,189 @@
-const mongoose = require('mongoose');
 const fetcher = require('./fetcher');
+const mongoose = require('mongoose');
 
-// --- DATABASE CONNECTION ---
-// Update URI to match your local or MongoDB Atlas deployment
-//const MONGO_URI = 'mongodb+srv://janindumuthunayaka:janindumuthunayaka@clusteriotbda.oj7twy4.mongodb.net/coldchain_logistics';
+// Connect to MongoDB using the same URI as the frontend dashboard
 const MONGO_URI = 'mongodb://janindumuthunayaka:janindumuthunayaka@ac-hlhiljp-shard-00-00.oj7twy4.mongodb.net:27017,ac-hlhiljp-shard-00-01.oj7twy4.mongodb.net:27017,ac-hlhiljp-shard-00-02.oj7twy4.mongodb.net:27017/coldchain_logistics?ssl=true&replicaSet=atlas-ingym5-shard-0&authSource=admin&appName=ClusterIOTBDA';
+
 mongoose.connect(MONGO_URI)
-    .then(() => console.log('[Database] Connected securely to MongoDB.'))
-    .catch(err => console.error('[Database] Connection Error:', err));
+    .then(() => console.log('✅ [dbLogic] Connected to MongoDB Atlas'))
+    .catch(err => console.error('❌ [dbLogic] MongoDB connection error:', err));
 
-// --- MONGOOSE SCHEMAS ---
-
-// 1. Trips Collection
-const tripSchema = new mongoose.Schema({
-    trip_id: String,
-    truck_id: String,
-    trip_direction: String, // removing enum to allow 'Complete' and 'TOBEDECLARED'
-    timestamp: Date,
-    weight1: Number,
-    weight2: Number,
-    status: { type: String, enum: ['ACTIVE', 'COMPLETED'] }
-});
-
-// HARDCORE LOGIC: MongoDB Partial Unique Index
-// This physically forces MongoDB to violently reject any duplicate "ACTIVE" trips for the same truck,
-// making it mathematically impossible for a zombie background process to bypass it.
-tripSchema.index({ truck_id: 1 }, { unique: true, partialFilterExpression: { status: 'ACTIVE' } });
-
-// 2. Sensor Readings Collection (Time-Series)
-const sensorReadingSchema = new mongoose.Schema({
-    trip_id: String,
-    truck_id: String,
-    start_time: Date,
-    temperature_data: [{
-        time: String,
-        avg: Number,
-        min: Number,
-        max: Number
-    }],
-    motion_data: [{
-        time: String,
-        max_accel: Number,
-        harsh_event: Boolean
-    }],
-    last_updated: Date
-});
-
+// Dynamic Schema (strict: false) just like in server.js
+const tripSchema = new mongoose.Schema({}, { strict: false, collection: 'trips' });
 const Trip = mongoose.model('Trip', tripSchema);
-const SensorData = mongoose.model('SensorData', sensorReadingSchema);
 
-// --- BUSINESS LOGIC CONTROLLERS ---
+const sensorDataSchema = new mongoose.Schema({}, { strict: false, collection: 'sensordatas' });
+const SensorData = mongoose.model('SensorData', sensorDataSchema);
 
-const gateScanLocks = {};
+// Helper function to update status and record the state change
+async function updateTripStatus(tripDoc, newStatus) {
+    if (tripDoc.status === newStatus) return tripDoc; // No change needed
 
-/**
- * Triggered by Gate sensor verifying a truck checkout/checkin
- */
+    const updateTime = new Date();
+    
+    await Trip.updateOne(
+        { _id: tripDoc._id },
+        { 
+            $set: { status: newStatus },
+            $push: { stateChange: { status: newStatus, timestamp: updateTime } }
+        }
+    );
+
+    // Update local object so subsequent code knows the new state
+    tripDoc.status = newStatus;
+    if (!tripDoc.stateChange) tripDoc.stateChange = [];
+    tripDoc.stateChange.push({ status: newStatus, timestamp: updateTime });
+
+    return tripDoc;
+}
+
 async function handleGateScan(truck_id, weight) {
-    if (gateScanLocks[truck_id]) {
-        console.log(`[DB] Ignoring duplicate proxy bounce for ${truck_id}`);
-        return;
-    }
-    gateScanLocks[truck_id] = true;
-    setTimeout(() => { delete gateScanLocks[truck_id]; }, 5000); // 5 seconds hardware debounce
+    const activeTrip = await Trip.findOne({ truck_id, active: true }).sort({ timestamp: -1 });
+    const event_type = activeTrip ? 'ENTRY' : 'EXIT';
 
-    // Check if there is an active trip for this truck
-    const activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
+    // Check if data was received in the last 5 seconds
+    const timestamps = fetcher.getTruckTimestamps();
+    const lastTime = timestamps[truck_id] || 0;
+    const is_transmitting = (Date.now() - lastTime) <= 5000;
 
-    if (activeTrip) {
-        // Second RFID trap: seal the data record
-        // By changing status to COMPLETED, updateSensorData will ignore any further data for this trip
-        activeTrip.status = 'COMPLETED';
-        activeTrip.weight2 = weight;
+    console.log(`[GATE] Truck ${truck_id} ${event_type} - Transmitting: ${is_transmitting}`);
 
-        await activeTrip.save();
-        console.log(`[DB] Active trip ${activeTrip.trip_id} for truck ${truck_id} sealed (marked as COMPLETED).`);
+    if (event_type === 'EXIT') {
+        // --- START NEW TRIP ---
+        const trip_type = is_transmitting ? 'OUTGOING' : 'INCOMING';
+        const initial_status = is_transmitting ? 'Out for Delivery' : 'Out to Pickup';
 
-        // Clear all truck data in fetcher to ensure next trip calculation starts fresh
-        if (typeof fetcher.clearTruckData === 'function') {
-            fetcher.clearTruckData(); // Universally clear all tracked ESP32s
-        }
-    } else {
-        // First RFID trap: Create a new record
-        const trip_id = `TRIP_${Date.now()}`;
-        const timestamp = new Date();
-
-        // Direction logic: based on updated flow
-        // OUTBOUND: Driver presses button to start data -> Scans gate to leave. (Data exists at gate scan)
-        // INBOUND: Driver taps RFID to leave -> Scans gate. Data is sent later. (No data exists at first gate scan)
-        let direction = "INBOUND";
-        // Auto-link logic: Check if ANY truck ESP32 sent sensor data within the last 5 seconds.
-        const timestamps = typeof fetcher.getTruckTimestamps === 'function' ? fetcher.getTruckTimestamps() : {};
-        let recentSensorFound = false;
-        const now = Date.now();
-        
-        let evaluationLog = `[DB] Evaluated OUTBOUND rule (10s limit):`;
-        let foundAny = false;
-        
-        for (const tid in timestamps) {
-            foundAny = true;
-            const diffSecs = ((now - timestamps[tid]) / 1000).toFixed(2);
-            evaluationLog += ` | ESP32 [${tid}] pinged ${diffSecs}s ago`;
-            if (now - timestamps[tid] <= 10000) {  // 10 seconds check
-                recentSensorFound = true;
-            }
-        }
-        
-        if (foundAny) console.log(evaluationLog);
-        
-        if (recentSensorFound) {
-            direction = "OUTBOUND";
-        }
+        // Generate a new unique trip identifier
+        const new_trip_id = `TRIP-${truck_id}-${Date.now()}`;
+        const startTime = new Date();
 
         const newTrip = new Trip({
-            trip_id,
-            truck_id,
-            trip_direction: direction,
-            timestamp,
-            weight1: weight,
-            status: 'ACTIVE' // This makes the trip active so updateSensorData will save incoming data
+            trip_id: new_trip_id,
+            truck_id: truck_id,
+            trip_type: trip_type,
+            status: initial_status,
+            active: true,
+            timestamp: startTime, // Departure time
+            startWeight: weight,
+            stateChange: [{
+                status: initial_status,
+                timestamp: startTime
+            }]
         });
 
-        try {
-            await newTrip.save();
-            console.log(`[DB] New ACTIVE Trip ${trip_id} recorded for ${truck_id} via gate scan. Direction: ${direction}`);
+        await newTrip.save();
+        console.log(`[DB] Created new trip ${new_trip_id} with status: ${initial_status}`);
+    }
+    else if (event_type === 'ENTRY') {
+        // --- END CURRENT TRIP ---
+        const endTime = new Date();
+        
+        await Trip.updateOne(
+            { _id: activeTrip._id },
+            {
+                $set: {
+                    status: 'Complete',
+                    active: false,
+                    endTime: endTime,
+                    endWeight: weight
+                },
+                $push: {
+                    stateChange: { status: 'Complete', timestamp: endTime }
+                }
+            }
+        );
+        
+        console.log(`[DB] Ended trip ${activeTrip.trip_id} at ${endTime}`);
+    }
+}
 
-            // Create blank sensor data document for the newly started trip
-            await SensorData.create({
-                trip_id,
-                truck_id,
-                start_time: timestamp,
-                temperature_data: [],
-                motion_data: [],
-                last_updated: timestamp
-            });
-            console.log(`[DB] Created blank sensor data document for ${trip_id}.`);
-        } catch (err) {
-            if (err.code === 11000) {
-                console.log(`[DB] Trip creation race condition safely caught for ${truck_id}. Trip already active.`);
-            } else {
-                console.error("[DB] Error creating trip:", err);
+async function updateSensorData(truck_id, tempStats, motionStats) {
+    const trip = await Trip.findOne({ truck_id, active: true }).sort({ timestamp: -1 });
+    if (!trip) return;
+
+    const latestData = fetcher.getLatestTruckData(truck_id) || {};
+    // Since the hardware button directly controls data transmission, 
+    // the mere fact that this function is called means the button is ON and data is flowing.
+
+    // If this is an INCOMING trip and we just started receiving data, 
+    // it means the driver arrived at the pickup location and pressed the button.
+    if (trip.trip_type === 'INCOMING' && trip.status === 'Out to Pickup') {
+        await updateTripStatus(trip, 'Reached pickup location and loading');
+        console.log(`[DB] Trip ${trip.trip_id} status updated to: Reached pickup location and loading`);
+    }
+
+    // Because the truck only sends data when the button is ON,
+    // any data received here should be recorded.
+    const is_recording = true;
+
+    if (is_recording) {
+        const currentTime = new Date().toISOString();
+        const updateDoc = {
+            $setOnInsert: { truck_id: truck_id },
+            $set: { last_updated: currentTime }
+        };
+
+        const pushDoc = {};
+        
+        if (tempStats && tempStats.avg !== undefined) {
+            pushDoc.temperature_data = {
+                time: currentTime,
+                avg: tempStats.avg,
+                min: tempStats.min,
+                max: tempStats.max
+            };
+        }
+
+        if (motionStats && motionStats.max_accel !== undefined) {
+            pushDoc.motion_data = {
+                time: currentTime,
+                max_accel: motionStats.max_accel,
+                harsh_event: motionStats.harsh_event
+            };
+        }
+
+        if (Object.keys(pushDoc).length > 0) {
+            updateDoc.$push = pushDoc;
+        }
+
+        await SensorData.updateOne(
+            { trip_id: trip.trip_id },
+            updateDoc,
+            { upsert: true }
+        );
+    }
+}
+
+// Background task to monitor outgoing trips for data timeouts (simulating the button turning OFF)
+setInterval(async () => {
+    try {
+        // Only look for active, outgoing trips that are currently 'Out for Delivery'
+        const trips = await Trip.find({ 
+            active: true, 
+            trip_type: 'OUTGOING', 
+            status: 'Out for Delivery' 
+        });
+
+        if (trips.length === 0) return;
+
+        const timestamps = fetcher.getTruckTimestamps();
+        const now = Date.now();
+
+        for (const trip of trips) {
+            const lastTime = timestamps[trip.truck_id] || 0;
+            
+            // If no data has been received in the last 5 seconds, it means the switch was turned OFF.
+            if (now - lastTime > 5000) {
+                await updateTripStatus(trip, 'Delivered and returning');
+                console.log(`[DB] Trip ${trip.trip_id} stopped transmitting for >5s. Status updated to: Delivered and returning`);
             }
         }
+    } catch (err) {
+        console.error('❌ Error in background status checker:', err.message);
     }
-}
+}, 2000);
 
-/**
- * Triggered by Truck ESP32 start button press (Typically for INBOUND trips from retail)
- */
-async function startTrip(truck_id) {
-    const trip_id = `TRIP_${Date.now()}`;
-    const timestamp = new Date();
-
-    const newTrip = new Trip({
-        trip_id,
-        truck_id,
-        trip_direction: "INBOUND",
-        timestamp,
-        weight1: 0, // Inbound weight isn't known until they scan at the destination gate
-        status: "ACTIVE"
-    });
-    await newTrip.save();
-
-    await SensorData.create({
-        trip_id,
-        truck_id,
-        start_time: timestamp,
-        temperature_data: [],
-        motion_data: [],
-        last_updated: timestamp
-    });
-
-    console.log(`[DB] Trip ${trip_id} started manually by truck button for ${truck_id}.`);
-}
-
-/**
- * Triggered by Truck ESP32 end button press (Arrival at Retail destination)
- */
-async function endTrip(truck_id) {
-    // Find the currently active trip for this truck and conclude it
-    const activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
-    if (activeTrip) {
-        activeTrip.status = 'COMPLETED';
-        await activeTrip.save();
-        console.log(`[DB] Trip ${activeTrip.trip_id} manually ended via truck button.`);
-    } else {
-        console.log(`[DB] Could not find an ACTIVE trip to end for ${truck_id}.`);
-    }
-}
-
-/**
- * Called every 3-minutes by the truck uploading environmental stats
- */
-async function updateSensorData(truck_id, tempData, motionData) {
-    let activeTrip = await Trip.findOne({ truck_id, status: 'ACTIVE' });
-    
-    // Auto-link logic: If the RFID hardware ID and ESP32 hardware ID do not match (e.g., 4021C561 vs C3809540),
-    // we bind the sensor payload to the single active trip to ensure dash functionality.
-    if (!activeTrip) {
-        const anyActiveTrips = await Trip.find({ status: 'ACTIVE' });
-        if (anyActiveTrips.length === 1) {
-            activeTrip = anyActiveTrips[0];
-            // Only log once every few updates to reduce spam
-            if (Math.random() < 0.2) console.log(`[DB] Auto-linked mismatched sensor data from ESP32(${truck_id}) to RFID(${activeTrip.truck_id}).`);
-        } else {
-            console.log(`[DB] Sensor data ignored - no ACTIVE trip mapped for ${truck_id}.`);
-            return;
-        }
-    }
-
-    // End active trip override
-
-    const sensorDoc = await SensorData.findOne({ trip_id: activeTrip.trip_id });
-    if (sensorDoc) {
-        const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-        sensorDoc.temperature_data.push({
-            time: timeStr,
-            avg: tempData.avg,
-            min: tempData.min,
-            max: tempData.max
-        });
-
-        sensorDoc.motion_data.push({
-            time: timeStr,
-            max_accel: motionData.max_accel,
-            harsh_event: motionData.harsh_event
-        });
-
-        sensorDoc.last_updated = new Date();
-        await sensorDoc.save();
-
-        console.log(`[DB] Logged 3-minute sensor pulse for trip ${activeTrip.trip_id}.`);
-    }
-}
-
-/**
- * Returns all trips sorted by newest first
- */
-async function getAllTrips() {
-    return await Trip.find().sort({ timestamp: -1 });
-}
-
-/**
- * Returns specific trip details and its associated sensor data
- */
-async function getTripSensorData(trip_id) {
-    const trip = await Trip.findOne({ trip_id });
-    const sensorData = await SensorData.findOne({ trip_id });
-    return { trip, sensorData };
-}
-
-// Export functions for usage in processor files
 module.exports = {
     handleGateScan,
-    startTrip,
-    endTrip,
-    updateSensorData,
-    getAllTrips,
-    getTripSensorData
+    updateSensorData
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -15,13 +15,17 @@ const API_BASE = 'http://localhost:3001';
 export default function OwnerTruckDetail({ trips: allTrips }) {
   const { truckId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const targetTripId = queryParams.get('trip');
   const [sensorData, setSensorData] = useState(null);
   const [tripDetail, setTripDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Find the most recent trip for this truck
   const truckTrips = allTrips.filter(t => t.truck_id === truckId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  const latestTrip = truckTrips[0];
+  // Use the requested trip if present, otherwise fallback to the most recent
+  const latestTrip = targetTripId ? truckTrips.find(t => t.trip_id === targetTripId) || truckTrips[0] : truckTrips[0];
 
   useEffect(() => {
     if (!latestTrip) { setLoading(false); return; }

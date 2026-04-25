@@ -79,6 +79,7 @@ function DriverShocksContent() {
         const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
         const isSafe = currentTempVal !== null && currentTempVal <= -18;
         updateSnapshot({
+            currentPage: 'Shocks Page',
             trip: tripDetails,
             sensorData,
             kpis: {

@@ -76,6 +76,7 @@ function DriverTemperatureContent() {
         const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
         const isSafe = currentTempVal !== null && currentTempVal <= -18;
         updateSnapshot({
+            currentPage: 'Temperature Page',
             trip: tripDetails,
             sensorData,
             kpis: {
@@ -109,6 +110,8 @@ function DriverTemperatureContent() {
 
     // History chart — use last 7 readings (time stored as HH:MM string, use directly)
     const historyBars = temps.slice(-7).map((t) => {
+    // History chart — use last 30 readings
+    const historyBars = temps.slice(-30).map((t) => {
         const val = Number(t.avg);
         const isWarning = val > -18;
         const pct = Math.min(100, Math.max(10, ((val - gaugeMin) / (gaugeMax - gaugeMin)) * 100));
@@ -281,6 +284,20 @@ function DriverTemperatureContent() {
                                                             borderRadius: '5px 5px 0 0',
                                                             transition: 'height 0.4s ease'
                                                         }}></div>
+                                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '80px', padding: '0 2px', position: 'relative', zIndex: 2, marginBottom: '8px' }}>
+                                                {historyBars.map((bar, i) => (
+                                                    <div key={i} style={{ width: '3px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                                                        {bar.isWarning ? (
+                                                            <div style={{
+                                                                width: '100%',
+                                                                height: `${bar.pct}%`,
+                                                                background: bar.val > -10 
+                                                                    ? 'linear-gradient(to top, #ff9f0a, #ff3b30)' 
+                                                                    : 'linear-gradient(to top, #ffd60a, #ff9f0a)',
+                                                                borderRadius: '2px 2px 0 0',
+                                                                transition: 'height 0.4s ease'
+                                                            }}></div>
+                                                        ) : null}
                                                     </div>
                                                 ))}
                                             </div>
@@ -288,6 +305,8 @@ function DriverTemperatureContent() {
                                                 {historyBars.map((bar, i) => (
                                                     <span key={i} style={{ fontSize: '8px', color: '#8e8e93' }}>{bar.time}</span>
                                                 ))}
+                                                <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600 }}>START</span>
+                                                <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600 }}>END</span>
                                             </div>
                                         </>
                                     ) : (

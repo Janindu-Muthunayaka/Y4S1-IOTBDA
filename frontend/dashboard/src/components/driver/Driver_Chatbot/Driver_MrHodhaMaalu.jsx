@@ -50,6 +50,7 @@ export default function MrHodhaMaalu() {
         if (!data) return "No dashboard data available.";
 
         const { trip, sensorData, kpis } = data;
+        const { trip, sensorData, kpis, currentPage } = data;
 
         // Real-time sensor snapshot
         const temps = sensorData?.temperature_data || [];
@@ -66,7 +67,18 @@ export default function MrHodhaMaalu() {
             ? (Math.abs(trip.weight1 - trip.weight2) < 1 ? 'Yes (Cargo Secure)' : 'No (Mismatch Detected)')
             : 'N/A';
 
+        const w1 = trip?.startWeight != null ? `${Number(trip.startWeight).toFixed(5)} kg` : 'N/A';
+        const w2 = trip?.endWeight != null ? `${Number(trip.endWeight).toFixed(5)} kg` : 'N/A';
+        const weightMatch = trip?.startWeight != null && trip?.endWeight != null
+            ? (Math.abs(trip.startWeight - trip.endWeight) < 1 ? 'Yes (Cargo Secure)' : 'No (Mismatch Detected)')
+            : 'N/A';
+
+        // Format scores to show N/A when no data
+        const qScore = temps.length === 0 && motions.length === 0 ? 'N/A' : `${kpis?.qualityScore}/100`;
+        const tComp = temps.length === 0 ? 'N/A' : `${kpis?.tempCompliance}%`;
+
         let pretext = `DASHBOARD SNAPSHOT CONTENT:\n`;
+        pretext += `Currently Viewing: ${currentPage || 'Driver Dashboard'}\n`;
         pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
         pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
         pretext += `Status: ${trip?.status || 'N/A'}\n`;
@@ -97,14 +109,62 @@ export default function MrHodhaMaalu() {
         if (kpis?.hot?.length > 0) {
             pretext += `High TEMP excursions (>-18°C):\n`;
             kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.shocks?.length > 0) {
-            pretext += `SHOCK events (>0.5G):\n`;
-            kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
-        }
+        pretext += `Status: ${trip?.status || 'N/A'}\n\n`;
 
-        if (!kpis?.cold?.length && !kpis?.hot?.length && !kpis?.shocks?.length) {
-            pretext += `No threshold violations recorded. Clean run.\n`;
+        if (currentPage === 'Temperature Page') {
+            pretext += `--- TEMPERATURE ANALYTICS ---\n`;
+            pretext += `Current Temperature: ${currentTemp}\n`;
+            pretext += `Temperature Compliance: ${tComp}\n`;
+            pretext += `Total Hot Violations (>-18°C): ${kpis?.hot?.length || 0}\n`;
+            pretext += `Total Cold Violations (<-22°C): ${kpis?.cold?.length || 0}\n\n`;
+            if (kpis?.hot?.length > 0) {
+                pretext += `Detailed Hot Excursions:\n`;
+                kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+            }
+            if (kpis?.cold?.length > 0) {
+                pretext += `Detailed Cold Excursions:\n`;
+                kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+            }
+        } 
+        else if (currentPage === 'Shocks Page') {
+            pretext += `--- SHOCK ANALYTICS ---\n`;
+            pretext += `Current Shock Status: ${shockLevel}\n`;
+            pretext += `Total Shock Events: ${kpis?.shocks?.length || 0}\n\n`;
+            if (kpis?.shocks?.length > 0) {
+                pretext += `Detailed Shock Events (>0.5G):\n`;
+                kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
+            }
+        }
+        else if (currentPage === 'Notifications Page') {
+            pretext += `--- ALERTS & SYSTEM STATUS ---\n`;
+            pretext += `Current Temperature: ${currentTemp}\n`;
+            pretext += `Current Shock Status: ${shockLevel}\n`;
+            pretext += `Cargo Weight Status: ${weightMatch}\n`;
+        }
+        else {
+            // Main Dashboard
+            const isOutbound = trip?.trip_type === 'OUTGOING';
+            const route = isOutbound ? 'Warehouse → Retailer' : 'Supplier → Warehouse';
+            const alertCount = (kpis?.cold?.length || 0) + (kpis?.hot?.length || 0) + (kpis?.shocks?.length || 0);
+
+            pretext += `--- TRIP OVERVIEW ---\n`;
+            pretext += `Route: ${route}\n\n`;
+            
+            pretext += `CARGO STATUS:\n`;
+            if (w1 !== 'N/A' || w2 !== 'N/A') {
+                pretext += `- Expected Weight: ${w1}\n`;
+                pretext += `- Current Weight: ${w2}\n`;
+                pretext += `- Cargo Match: ${weightMatch}\n`;
+            } else {
+                pretext += `- Weight Data: Pending/Unavailable\n`;
+            }
+
+            pretext += `REAL-TIME SENSORS:\n`;
+            pretext += `- Current Temperature: ${currentTemp}\n`;
+            pretext += `- Shock Level: ${shockLevel}\n\n`;
+
+            pretext += `ALERTS SUMMARY:\n`;
+            pretext += `- Active Alerts: ${alertCount}\n`;
         }
 
         // Save to Driver_Pretext.txt via backend

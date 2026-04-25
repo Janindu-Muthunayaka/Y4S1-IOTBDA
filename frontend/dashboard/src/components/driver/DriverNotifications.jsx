@@ -61,6 +61,8 @@ function DriverNotificationsContent() {
     const isShockAlert = shockEvents.length > 0;
     const w1 = tripDetails?.weight1 ?? tripDetails?.start_weight ?? tripDetails?.weight ?? null;
     const w2 = tripDetails?.weight2 ?? tripDetails?.end_weight ?? null;
+    const w1 = tripDetails?.startWeight ?? tripDetails?.start_weight ?? tripDetails?.weight ?? null;
+    const w2 = tripDetails?.endWeight ?? tripDetails?.end_weight ?? null;
     const isWeightAlert = w1 !== null && w2 !== null && Math.abs(Number(w1) - Number(w2)) > 50;
 
     // Build live alert feed from real data
@@ -117,6 +119,7 @@ function DriverNotificationsContent() {
         const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
         const isSafe = currentTempVal !== null && currentTempVal <= -18;
         updateSnapshot({
+            currentPage: 'Notifications Page',
             trip: tripDetails,
             sensorData,
             kpis: {

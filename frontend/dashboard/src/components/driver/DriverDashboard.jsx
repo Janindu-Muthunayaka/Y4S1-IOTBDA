@@ -56,6 +56,7 @@ function DriverDashboardContent() {
     let tempStatus = 'Waiting for data';
     let isTempSafe = true;
     let shockEventsCount = 0;
+    let maxRecordedTemp = undefined;
 
     if (sensorData) {
         const temps = sensorData.temperature_data || [];
@@ -65,6 +66,7 @@ function DriverDashboardContent() {
             currentTemp = Number(temps[temps.length - 1].avg).toFixed(1);
             isTempSafe = currentTemp <= -18;
             tempStatus = isTempSafe ? 'Within Safe Range' : 'Temperature Alert';
+            maxRecordedTemp = Math.max(...temps.map(t => Number(t.max))).toFixed(1);
         }
 
         shockEventsCount = motions.filter(m => m.max_accel > 0.5).length;
@@ -74,21 +76,26 @@ function DriverDashboardContent() {
     const shockDesc = shockEventsCount === 0 ? 'Smooth Driving' : `${shockEventsCount} Events`;
 
     // Weights
-    const w1 = tripDetails?.weight1 ?? tripDetails?.start_weight ?? tripDetails?.weight ?? '--';
-    const w2 = tripDetails?.weight2 ?? tripDetails?.end_weight ?? '--';
+    const w1 = tripDetails?.startWeight ?? tripDetails?.start_weight ?? tripDetails?.weight ?? '--';
+    const w2 = tripDetails?.endWeight ?? tripDetails?.end_weight ?? '--';
 
     // Formatter
     const fmtT = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
-    const isOutbound = tripDetails?.trip_direction === 'OUTBOUND';
+    const isOutbound = tripDetails?.trip_type === 'OUTGOING';
     const step1Label = "Left Warehouse";
-    const step2Label = isOutbound ? "At Customer" : "At Supplier";
+    const step2Label = isOutbound ? "At Retailer" : "At Supplier";
     const step3Label = "Entered Warehouse";
+
+    const routeText = isOutbound ? 'Warehouse → Retailer' : 'Supplier → Warehouse';
 
     const time1 = fmtT(tripDetails?.timestamp);
     const tempsArr = sensorData?.temperature_data || [];
     const time2 = tempsArr.length > 0 ? (isOutbound ? tempsArr[tempsArr.length - 1].time : tempsArr[0].time) : '--:--';
-    const time3 = tripDetails?.status === 'COMPLETED' ? fmtT(sensorData?.last_updated || tripDetails?.updatedAt) : '--:--';
+    const time3 = tripDetails?.status === 'Complete' ? fmtT(sensorData?.last_updated || tripDetails?.updatedAt) : '--:--';
+
+    // State Change Logic
+    const stateHistory = tripDetails?.stateChange || [];
 
     // Push data to chatbot
     useEffect(() => {
@@ -110,12 +117,26 @@ function DriverDashboardContent() {
             }
         });
     }, [tripDetails, sensorData, updateSnapshot]);
+        if (tripDetails && sensorData) {
+            updateSnapshot({
+                currentPage: 'Main Dashboard',
+                trip: tripDetails,
+                sensorData: sensorData,
+                kpis: {
+                    qualityScore: 100 - (shockEventsCount * 2), // Simplified for driver
+                    tempCompliance: isTempSafe ? 100 : 0,
+                    shocks: sensorData.motion_data.filter(m => m.max_accel > 0.5),
+                    cold: sensorData.temperature_data.filter(t => Number(t.avg) < -22),
+                    hot: sensorData.temperature_data.filter(t => Number(t.avg) > -18)
+                }
+            });
+        }
+    }, [tripDetails, sensorData, shockEventsCount, isTempSafe, updateSnapshot]);
 
     return (
         <div className="driver-dashboard-wrapper">
             <div className="driver-phone-frame">
-                <div className="driver-status-bar"></div>
-                <div className="driver-screen">
+                <div className="driver-screen" style={{ marginTop: '14px' }}>
                     <div className="driver-dynamic-island"></div>
                     <div className="driver-inner-scroll">
                         {/* LEFT SIDEBAR NAV */}
@@ -125,21 +146,13 @@ function DriverDashboardContent() {
                         <div className="driver-main-content">
                             <div className="driver-header-title">Driver dashboard</div>
 
-                            {/* Driver Monitoring Card */}
-                            <div className="driver-card">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div>
-                                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#1c1c1e', lineHeight: 1.2 }}>Driver<br />Monitorin...</div>
-                                        <div style={{ fontSize: '10px', color: '#8e8e93', marginTop: '2px' }}>Live trip summary</div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                                    </div>
-                                </div>
-                                <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                            {/* Compact Trip Selector Card */}
+                            <div className="driver-card" style={{ padding: '10px 15px', marginBottom: '15px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#1c1c1e' }}>Select Trip</div>
                                     <select
                                         className="driver-dropdown"
+                                        style={{ width: '100%' }}
                                         value={selectedTripId}
                                         onChange={(e) => setSelectedTripId(e.target.value)}
                                     >
@@ -158,8 +171,8 @@ function DriverDashboardContent() {
                             <div className="driver-card">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                                     <span style={{ fontSize: '15px', fontWeight: 700, color: '#1c1c1e' }}>{tripDetails?.truck_id || '----'}</span>
-                                    <div className={`driver-trip-badge ${tripDetails?.status === 'COMPLETED' ? 'completed' : ''}`}>
-                                        {tripDetails?.status === 'COMPLETED' ? (
+                                    <div className={`driver-trip-badge ${tripDetails?.status === 'Complete' ? 'completed' : ''}`}>
+                                        {tripDetails?.status === 'Complete' ? (
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                                         ) : (
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f0a500" strokeWidth="2.5"><rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 3v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
@@ -167,36 +180,24 @@ function DriverDashboardContent() {
                                         <span className="driver-trip-badge-text">{tripDetails?.status || 'In Transit'}</span>
                                     </div>
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#8e8e93', marginBottom: '14px' }}>{tripDetails?.trip_direction || 'Colombo → Kandy'}</div>
+                                <div style={{ fontSize: '11px', color: '#8e8e93', marginBottom: '14px' }}>{routeText}</div>
 
                                 {/* Progress Steps */}
                                 <div className="driver-progress-container">
-                                    <div className="driver-step">
-                                        <div className="driver-step-circle done">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        </div>
-                                        <span className="driver-step-text done">{step1Label}</span>
-                                    </div>
-                                    <div className="driver-step-line done"></div>
-
-                                    <div className="driver-step">
-                                        <div className={`driver-step-circle ${tripDetails?.status === 'ACTIVE' || tripDetails?.status === 'COMPLETED' ? 'done' : 'pending'}`}>
-                                            {tripDetails?.status === 'ACTIVE' || tripDetails?.status === 'COMPLETED' ? (
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                            ) : null}
-                                        </div>
-                                        <span className={`driver-step-text ${tripDetails?.status === 'ACTIVE' || tripDetails?.status === 'COMPLETED' ? 'done' : 'pending'}`}>{step2Label}</span>
-                                    </div>
-                                    <div className={`driver-step-line ${tripDetails?.status === 'ACTIVE' ? 'active-to-pending' : (tripDetails?.status === 'COMPLETED' ? 'done' : 'pending')}`}></div>
-
-                                    <div className="driver-step">
-                                        <div className={`driver-step-circle ${tripDetails?.status === 'COMPLETED' ? 'done' : (tripDetails?.status === 'ACTIVE' ? 'active' : 'pending')}`}>
-                                            {tripDetails?.status === 'COMPLETED' ? (
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                            ) : null}
-                                        </div>
-                                        <span className={`driver-step-text ${tripDetails?.status === 'COMPLETED' ? 'done' : (tripDetails?.status === 'ACTIVE' ? 'active' : 'pending')}`}>{step3Label}</span>
-                                    </div>
+                                    {stateHistory.map((state, idx, arr) => (
+                                        <React.Fragment key={idx}>
+                                            <div className="driver-step" style={{ minWidth: 'auto', flex: 1 }}>
+                                                <div className="driver-step-circle done" title={fmtT(state.timestamp)}>
+                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                                </div>
+                                                <span className="driver-step-text done" style={{ fontSize: '9px', textAlign: 'center', marginTop: '4px' }}>{state.status}</span>
+                                            </div>
+                                            {idx < arr.length - 1 && <div className="driver-step-line done" style={{ minWidth: '15px' }}></div>}
+                                        </React.Fragment>
+                                    ))}
+                                    {stateHistory.length === 0 && (
+                                        <div style={{ fontSize: '11px', color: '#8e8e93', fontStyle: 'italic', textAlign: 'center', width: '100%' }}>No tracking history available</div>
+                                    )}
                                 </div>
                             </div>
 
@@ -206,15 +207,19 @@ function DriverDashboardContent() {
                                 <div className="driver-flex-row">
 
                                     {/* Temperature */}
-                                    <div className="driver-condition-card">
-                                        <div className="driver-condition-title">Current Temperature</div>
+                                    <div 
+                                        className="driver-condition-card" 
+                                        onClick={() => navigate('/driver/temperature')} 
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className="driver-condition-title">Highest Temperature</div>
                                         {/* Clean Arc Gauge */}
                                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
                                             {(() => {
                                                 const cx = 60, cy = 56, r = 44;
                                                 // Range: -30°C (safe) to 0°C (danger)
                                                 const minTemp = -30, maxTemp = 0;
-                                                const tempVal = currentTemp !== '--' ? Math.min(Math.max(Number(currentTemp), minTemp), maxTemp) : minTemp;
+                                                const tempVal = maxRecordedTemp !== undefined ? Math.min(Math.max(Number(maxRecordedTemp), minTemp), maxTemp) : minTemp;
                                                 // Angle from 210° (left) to 330° (right) = 120° sweep, clockwise
                                                 const startAngleDeg = 210;
                                                 const endAngleDeg = 330;
@@ -258,7 +263,7 @@ function DriverDashboardContent() {
                                             })()}
                                         </div>
                                         <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 700, color: '#1c1c1e' }}>
-                                            {currentTemp !== '--' ? `${currentTemp}°C` : '--'}
+                                            {maxRecordedTemp !== undefined ? `${maxRecordedTemp}°C` : '--'}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '6px' }}>
                                             {isTempSafe ? (
@@ -309,7 +314,7 @@ function DriverDashboardContent() {
                                 <div className="driver-flex-row">
 
                                     {/* Cargo Weight */}
-                                    <div className="driver-condition-card">
+                                    <div className="driver-condition-card" style={{ flex: 1 }}>
                                         <div className="driver-condition-title">Cargo Weight</div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                             <span style={{ fontSize: '10px', color: '#8e8e93' }}>Current:</span>
