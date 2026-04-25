@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useChatbot } from '../Retail_Chatbot/Retail_ChatbotContext';
 
 /* ---------------- MOCK ALERT DATA ---------------- */
 const ALERT_DATA = {
@@ -359,6 +360,7 @@ function WarningIcon({ type }) {
 /* ---------------- MAIN COMPONENT ---------------- */
 export default function RetailerAlerts() {
   const [time, setTime] = useState("");
+  const { updateSnapshot } = useChatbot();
 
   useEffect(() => {
     const tick = () => {
@@ -375,6 +377,17 @@ export default function RetailerAlerts() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    updateSnapshot({
+      type: 'ALERTS_PAGE',
+      criticalAlerts: ALERT_DATA.summary.critical,
+      warningAlerts: ALERT_DATA.summary.warning,
+      safeAlerts: ALERT_DATA.summary.safe,
+      qualityScore: ALERT_DATA.qualityScore,
+      anomalies: ALERT_DATA.anomalies
+    });
+  }, [updateSnapshot]);
 
   const s = {
     container: {
