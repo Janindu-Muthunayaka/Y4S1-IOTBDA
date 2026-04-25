@@ -9,6 +9,7 @@ import './driver.css';
 const API_BASE = 'http://localhost:3001';
 
 function DriverDashboardContent() {
+    const navigate = useNavigate();
     const [trips, setTrips] = useState([]);
     const [selectedTripId, setSelectedTripId] = useState('');
     const [sensorData, setSensorData] = useState(null);
@@ -99,31 +100,13 @@ function DriverDashboardContent() {
 
     // Push data to chatbot
     useEffect(() => {
-        if (!tripDetails || !sensorData) return;
-        const tempData = sensorData.temperature_data || [];
-        const motionData = sensorData.motion_data || [];
-        const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
-        const isSafe = currentTempVal !== null && currentTempVal <= -18;
-        const shocks = motionData.filter(m => m.max_accel > 0.5);
-        updateSnapshot({
-            trip: tripDetails,
-            sensorData,
-            kpis: {
-                qualityScore: 100 - (shocks.length * 2),
-                tempCompliance: isSafe ? 100 : (currentTempVal === null ? 100 : 0),
-                shocks,
-                cold: tempData.filter(t => Number(t.avg) < -22),
-                hot: tempData.filter(t => Number(t.avg) > -18),
-            }
-        });
-    }, [tripDetails, sensorData, updateSnapshot]);
         if (tripDetails && sensorData) {
             updateSnapshot({
                 currentPage: 'Main Dashboard',
                 trip: tripDetails,
                 sensorData: sensorData,
                 kpis: {
-                    qualityScore: 100 - (shockEventsCount * 2), // Simplified for driver
+                    qualityScore: 100 - (shockEventsCount * 2),
                     tempCompliance: isTempSafe ? 100 : 0,
                     shocks: sensorData.motion_data.filter(m => m.max_accel > 0.5),
                     cold: sensorData.temperature_data.filter(t => Number(t.avg) < -22),
@@ -136,7 +119,8 @@ function DriverDashboardContent() {
     return (
         <div className="driver-dashboard-wrapper">
             <div className="driver-phone-frame">
-                <div className="driver-screen" style={{ marginTop: '14px' }}>
+                <div className="driver-status-bar"></div>
+                <div className="driver-screen">
                     <div className="driver-dynamic-island"></div>
                     <div className="driver-inner-scroll">
                         {/* LEFT SIDEBAR NAV */}
@@ -330,16 +314,6 @@ function DriverDashboardContent() {
                                         </div>
                                     </div>
 
-                                    {/* RFID Status */}
-                                    <div className="driver-condition-card">
-                                        <div className="driver-condition-title">RFID Status</div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px' }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#1c1c1e' }}>Warehouse Verified</span>
-                                        </div>
-                                        <div style={{ fontSize: '9px', color: '#8e8e93', marginBottom: '10px' }}>{time1} ━━━━</div>
-                                        <div style={{ background: 'linear-gradient(135deg, #c8d8f0, #a0b8e8)', borderRadius: '8px', height: '30px', width: '50px', margin: '0 auto', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}></div>
-                                    </div>
                                 </div>
                             </div>
 

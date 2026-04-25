@@ -32,6 +32,7 @@
   margin-bottom: 6px;
   letter-spacing: 0.3px;
   flex-shrink: 0;
+  height: 20px;
 }
 
 .driver-screen {
@@ -154,7 +155,6 @@
   background: #f2f2f7;
 }
 
-/* Hide scrollbar for main content */
 .driver-main-content::-webkit-scrollbar {
   display: none;
 }
@@ -277,7 +277,6 @@
   color: #30d158;
 }
 
-/* Progress steps */
 .driver-progress-container {
   display: flex;
   align-items: center;
@@ -301,56 +300,31 @@
   z-index: 2;
 }
 
-.driver-step-circle.done {
-  background: #30d158;
-}
-
+.driver-step-circle.done { background: #30d158; }
 .driver-step-circle.active {
   background: #1c1c1e;
   border: 3px solid #1c1c1e;
   box-shadow: 0 0 0 3px #f2f2f7, 0 0 0 5px #1c1c1e;
 }
-
-.driver-step-circle.pending {
-  background: #d1d1d6;
-}
+.driver-step-circle.pending { background: #d1d1d6; }
 
 .driver-step-text {
   font-size: 8px;
   margin-top: 4px;
   text-align: center;
 }
-
-.driver-step-text.done {
-  color: #30d158;
-}
-
-.driver-step-text.active {
-  color: #1c1c1e;
-  font-weight: 700;
-}
-
-.driver-step-text.pending {
-  color: #8e8e93;
-}
+.driver-step-text.done { color: #30d158; }
+.driver-step-text.active { color: #1c1c1e; font-weight: 700; }
+.driver-step-text.pending { color: #8e8e93; }
 
 .driver-step-line {
   flex: 1;
   height: 2px;
   margin-top: -12px;
 }
-
-.driver-step-line.done {
-  background: #30d158;
-}
-
-.driver-step-line.pending {
-  background: #d1d1d6;
-}
-
-.driver-step-line.active-to-pending {
-  background: #d1d1d6;
-}
+.driver-step-line.done { background: #30d158; }
+.driver-step-line.pending { background: #d1d1d6; }
+.driver-step-line.active-to-pending { background: #d1d1d6; }
 
 /* ═══════════════════════════════════════════
    Temperature Page Specific Styles (dt = driver-temp)
@@ -384,18 +358,8 @@
   font-weight: 600;
   border: 1px solid;
 }
-
-.dt-temp-badge.safe {
-  background: #e8faf0;
-  border-color: #30d158;
-  color: #30d158;
-}
-
-.dt-temp-badge.danger {
-  background: #fef2f2;
-  border-color: #ff3b30;
-  color: #ff3b30;
-}
+.dt-temp-badge.safe { background: #e8faf0; border-color: #30d158; color: #30d158; }
+.dt-temp-badge.danger { background: #fef2f2; border-color: #ff3b30; color: #ff3b30; }
 
 .dt-stats-grid {
   display: grid;
@@ -415,19 +379,8 @@
   gap: 5px;
   margin-bottom: 4px;
 }
-
-.dt-stat-label span {
-  font-size: 9px;
-  color: #8e8e93;
-  font-weight: 500;
-}
-
-.dt-stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1c1c1e;
-  line-height: 1;
-}
+.dt-stat-label span { font-size: 9px; color: #8e8e93; font-weight: 500; }
+.dt-stat-value { font-size: 20px; font-weight: 700; color: #1c1c1e; line-height: 1; }
 
 /* ═══════════════════════════════════════════
    Shocks Page Specific Styles (ds = driver-shocks)
@@ -462,18 +415,8 @@
   font-weight: 600;
   border: 1.5px solid;
 }
-
-.ds-status-badge.safe {
-  background: #f0fff4;
-  border-color: #30d158;
-  color: #1a7a3a;
-}
-
-.ds-status-badge.danger {
-  background: #fff0f0;
-  border-color: #ff3b30;
-  color: #cc2020;
-}
+.ds-status-badge.safe { background: #f0fff4; border-color: #30d158; color: #1a7a3a; }
+.ds-status-badge.danger { background: #fff0f0; border-color: #ff3b30; color: #cc2020; }
 
 .ds-mini-card {
   flex: 1;
@@ -494,86 +437,10 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-/* --- Driver Notifications CSS --- */
-.dn-icon-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #f5f6fa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.dn-icon-btn:hover { background: #e8e9f0; }
-
-.dn-critical-pill {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #fff0f0;
-  border: 1px solid #ff3b30;
-  border-radius: 12px;
-  padding: 4px 8px;
-}
-.dn-critical-pill span { font-size: 10px; font-weight: 700; color: #ff3b30; }
-
-.dn-ok-pill {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #f0fff4;
-  border: 1px solid #30d158;
-  border-radius: 12px;
-  padding: 4px 8px;
-}
-.dn-ok-pill span { font-size: 10px; font-weight: 700; color: #30d158; }
-
-.dn-priority-pill {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 12px;
-  padding: 4px 8px;
-}
-.dn-priority-pill.critical { background: #ff3b30; color: #fff; }
-.dn-priority-pill.ok { background: #30d158; color: #fff; }
-.dn-priority-pill span { font-size: 10px; font-weight: 700; }
-
-.dn-stats-grid {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid #f5f5f5;
-}
-.dn-stat-box { flex: 1; }
-.dn-stat-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-.dn-stat-label span { font-size: 10px; color: #888; font-weight: 600; }
-.dn-stat-value { font-size: 16px; font-weight: 800; color: #111; }
-
-.dn-alert-card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 12px;
-  border-left: 4px solid #ccc;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-.dn-alert-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
 /* ═══════════════════════════════════════════
@@ -589,7 +456,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.2s;
 }
+.dn-icon-btn:hover { background: #e8e9f0; }
 
 .dn-critical-pill {
   background: #ff3b30;
@@ -627,7 +496,6 @@
   flex-shrink: 0;
   height: fit-content;
 }
-
 .dn-priority-pill.critical { background: #ff3b30; }
 .dn-priority-pill.ok       { background: #30d158; }
 
@@ -650,18 +518,8 @@
   gap: 6px;
   margin-bottom: 6px;
 }
-
-.dn-stat-label span {
-  font-size: 10px;
-  color: #aaa;
-  font-weight: 600;
-}
-
-.dn-stat-value {
-  font-size: 28px;
-  font-weight: 900;
-  color: #111;
-}
+.dn-stat-label span { font-size: 10px; color: #aaa; font-weight: 600; }
+.dn-stat-value { font-size: 28px; font-weight: 900; color: #111; }
 
 .dn-alert-card {
   background: #fff;
@@ -674,87 +532,10 @@
 .dn-alert-icon {
   width: 36px;
   height: 36px;
-}
-
-/* --- Driver Temperature CSS --- */
-.dt-sensor-select {
-  background: #f2f2f7;
-  border: none;
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #1c1c1e;
-  outline: none;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-}
-
-.dt-temp-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 10px;
-}
-.dt-temp-badge.safe { background: #f0fff4; }
-.dt-temp-badge.danger { background: #fff0f0; }
-.dt-temp-badge.safe span { font-size: 11px; font-weight: 700; color: #30d158; }
-.dt-temp-badge.danger span { font-size: 11px; font-weight: 700; color: #ff3b30; }
-
-.dt-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.dt-stat-card {
-  background: #f9f9fb;
-  border-radius: 12px;
-  padding: 10px;
-}
-.dt-stat-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.dt-stat-label span { font-size: 10px; color: #8e8e93; font-weight: 600; }
-.dt-stat-value { font-size: 14px; font-weight: 800; color: #1c1c1e; }
-
-/* --- Driver Shocks CSS --- */
-.ds-icon-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.ds-status-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 12px;
-  margin-top: 12px;
-}
-.ds-status-badge.safe { background: #e8faf0; }
-.ds-status-badge.danger { background: #ffebee; }
-.ds-status-badge.safe span { font-size: 11px; font-weight: 700; color: #30d158; }
-.ds-status-badge.danger span { font-size: 11px; font-weight: 700; color: #ff3b30; }
-
-.ds-event-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-}
-.ds-event-icon {
-  width: 32px;
-  height: 32px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-top: 1px;
 }

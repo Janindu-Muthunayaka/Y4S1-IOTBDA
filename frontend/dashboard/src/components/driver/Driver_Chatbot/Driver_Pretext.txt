@@ -1,20 +1,11 @@
 DASHBOARD SNAPSHOT CONTENT:
 Currently Viewing: Main Dashboard
-Trip ID: TRIP-C3809540-1777122372378
-Truck: C3809540
-Status: Complete
+Trip: TRIP-C3809540-1777122372378 (Complete)
 
 --- TRIP OVERVIEW ---
-Type: OUTGOING
-Quality Score: 96/100
-Temperature Compliance: 0%
+Route: Warehouse → Retailer
+Cargo: Mismatch (Exp: 28.214 kg, Cur: 25.581 kg)
+Temp: -17.6°C (0% Compliance)
+Shocks: ALERT (2 events)
 
-CARGO STATUS:
-- Expected Weight: 28.21397 kg
-- Current Weight: 25.58098 kg
-- Weight Match: No (Mismatch Detected)
-- RFID Status: Warehouse Verified
-
-REAL-TIME SENSORS:
-- Current Temperature: -17.6°C
-- Shock Level: ALERT — Shock events detected
+STATUS: Active alerts detected in system.

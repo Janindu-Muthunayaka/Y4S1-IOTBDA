@@ -49,122 +49,63 @@ export default function MrHodhaMaalu() {
     const createPretext = useCallback(async (data) => {
         if (!data) return "No dashboard data available.";
 
-        const { trip, sensorData, kpis } = data;
         const { trip, sensorData, kpis, currentPage } = data;
 
-        // Real-time sensor snapshot
+        // Common metrics
         const temps = sensorData?.temperature_data || [];
         const motions = sensorData?.motion_data || [];
-        const currentTemp = temps.length > 0 ? `${parseFloat(temps[temps.length - 1].avg).toFixed(1)}°C` : 'Waiting for sensor data';
+        const currentTemp = temps.length > 0 ? `${parseFloat(temps[temps.length - 1].avg).toFixed(1)}°C` : 'N/A';
         const shockLevel = motions.length > 0
-            ? (Math.max(...motions.map(m => m.max_accel)) > 0.5 ? 'ALERT — Shock events detected' : 'NORMAL (Smooth Driving)')
-            : 'No data yet';
-
-        // Cargo weight
-        const w1 = trip?.weight1 != null ? `${Number(trip.weight1).toFixed(5)} kg` : 'N/A';
-        const w2 = trip?.weight2 != null ? `${Number(trip.weight2).toFixed(5)} kg` : 'N/A';
-        const weightMatch = trip?.weight1 != null && trip?.weight2 != null
-            ? (Math.abs(trip.weight1 - trip.weight2) < 1 ? 'Yes (Cargo Secure)' : 'No (Mismatch Detected)')
+            ? (Math.max(...motions.map(m => m.max_accel)) > 0.5 ? 'ALERT' : 'NORMAL')
             : 'N/A';
 
-        const w1 = trip?.startWeight != null ? `${Number(trip.startWeight).toFixed(5)} kg` : 'N/A';
-        const w2 = trip?.endWeight != null ? `${Number(trip.endWeight).toFixed(5)} kg` : 'N/A';
+        const w1 = trip?.startWeight != null ? `${Number(trip.startWeight).toFixed(3)} kg` : 'N/A';
+        const w2 = trip?.endWeight != null ? `${Number(trip.endWeight).toFixed(3)} kg` : 'N/A';
         const weightMatch = trip?.startWeight != null && trip?.endWeight != null
-            ? (Math.abs(trip.startWeight - trip.endWeight) < 1 ? 'Yes (Cargo Secure)' : 'No (Mismatch Detected)')
+            ? (Math.abs(trip.startWeight - trip.endWeight) < 0.5 ? 'Secure' : 'Mismatch')
             : 'N/A';
-
-        // Format scores to show N/A when no data
-        const qScore = temps.length === 0 && motions.length === 0 ? 'N/A' : `${kpis?.qualityScore}/100`;
-        const tComp = temps.length === 0 ? 'N/A' : `${kpis?.tempCompliance}%`;
 
         let pretext = `DASHBOARD SNAPSHOT CONTENT:\n`;
-        pretext += `Currently Viewing: ${currentPage || 'Driver Dashboard'}\n`;
-        pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
-        pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
-        pretext += `Status: ${trip?.status || 'N/A'}\n`;
-        pretext += `Direction: ${trip?.trip_direction || 'N/A'}\n`;
-        pretext += `Quality Score: ${kpis?.qualityScore}/100\n`;
-        pretext += `Temperature Compliance: ${kpis?.tempCompliance}%\n\n`;
-
-        pretext += `CARGO STATUS:\n`;
-        pretext += `- Expected Weight: ${w1}\n`;
-        pretext += `- Current Weight: ${w2}\n`;
-        pretext += `- Weight Match: ${weightMatch}\n`;
-        pretext += `- RFID Status: Warehouse Verified\n\n`;
-
-        pretext += `REAL-TIME CONDITIONS:\n`;
-        pretext += `- Current Temperature: ${currentTemp}\n`;
-        pretext += `- Shock Level: ${shockLevel}\n\n`;
-
-        pretext += `SUMMARY OF ANOMALIES:\n`;
-        pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
-        pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
-        pretext += `- Hot Violations: ${kpis?.hot?.length || 0}\n\n`;
-
-        pretext += `DETAILED VIOLATION TIMES (Threshold Crosses):\n`;
-        if (kpis?.cold?.length > 0) {
-            pretext += `Low TEMP excursions (<-22°C):\n`;
-            kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.hot?.length > 0) {
-            pretext += `High TEMP excursions (>-18°C):\n`;
-            kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        pretext += `Status: ${trip?.status || 'N/A'}\n\n`;
+        pretext += `Currently Viewing: ${currentPage || 'Main Dashboard'}\n`;
+        pretext += `Trip: ${trip?.trip_id || 'N/A'} (${trip?.status || 'N/A'})\n\n`;
 
         if (currentPage === 'Temperature Page') {
             pretext += `--- TEMPERATURE ANALYTICS ---\n`;
-            pretext += `Current Temperature: ${currentTemp}\n`;
-            pretext += `Temperature Compliance: ${tComp}\n`;
-            pretext += `Total Hot Violations (>-18°C): ${kpis?.hot?.length || 0}\n`;
-            pretext += `Total Cold Violations (<-22°C): ${kpis?.cold?.length || 0}\n\n`;
+            pretext += `Current: ${currentTemp}\n`;
+            pretext += `Compliance: ${kpis?.tempCompliance}%\n`;
+            pretext += `Anomalies: ${kpis?.hot?.length + kpis?.cold?.length || 0}\n`;
             if (kpis?.hot?.length > 0) {
-                pretext += `Detailed Hot Excursions:\n`;
-                kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+                pretext += `Hot Excursions (>-18°C):\n`;
+                kpis.hot.slice(-10).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
             }
             if (kpis?.cold?.length > 0) {
-                pretext += `Detailed Cold Excursions:\n`;
-                kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+                pretext += `Cold Excursions (<-22°C):\n`;
+                kpis.cold.slice(-10).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
             }
         } 
         else if (currentPage === 'Shocks Page') {
             pretext += `--- SHOCK ANALYTICS ---\n`;
-            pretext += `Current Shock Status: ${shockLevel}\n`;
-            pretext += `Total Shock Events: ${kpis?.shocks?.length || 0}\n\n`;
+            pretext += `Current Status: ${shockLevel}\n`;
+            pretext += `Total Events: ${kpis?.shocks?.length || 0}\n`;
             if (kpis?.shocks?.length > 0) {
-                pretext += `Detailed Shock Events (>0.5G):\n`;
-                kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
+                pretext += `Recent Impacts (>0.5G):\n`;
+                kpis.shocks.slice(-10).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
             }
-        }
-        else if (currentPage === 'Notifications Page') {
-            pretext += `--- ALERTS & SYSTEM STATUS ---\n`;
-            pretext += `Current Temperature: ${currentTemp}\n`;
-            pretext += `Current Shock Status: ${shockLevel}\n`;
-            pretext += `Cargo Weight Status: ${weightMatch}\n`;
         }
         else {
-            // Main Dashboard
+            // Main Dashboard or Notifications
             const isOutbound = trip?.trip_type === 'OUTGOING';
-            const route = isOutbound ? 'Warehouse → Retailer' : 'Supplier → Warehouse';
-            const alertCount = (kpis?.cold?.length || 0) + (kpis?.hot?.length || 0) + (kpis?.shocks?.length || 0);
-
             pretext += `--- TRIP OVERVIEW ---\n`;
-            pretext += `Route: ${route}\n\n`;
+            pretext += `Route: ${isOutbound ? 'Warehouse → Retailer' : 'Supplier → Warehouse'}\n`;
+            pretext += `Cargo: ${weightMatch} (Exp: ${w1}, Cur: ${w2})\n`;
+            pretext += `Temp: ${currentTemp} (${kpis?.tempCompliance}% Compliance)\n`;
+            pretext += `Shocks: ${shockLevel} (${kpis?.shocks?.length || 0} events)\n`;
             
-            pretext += `CARGO STATUS:\n`;
-            if (w1 !== 'N/A' || w2 !== 'N/A') {
-                pretext += `- Expected Weight: ${w1}\n`;
-                pretext += `- Current Weight: ${w2}\n`;
-                pretext += `- Cargo Match: ${weightMatch}\n`;
+            if (kpis?.shocks?.length > 0 || kpis?.hot?.length > 0 || kpis?.cold?.length > 0) {
+                pretext += `\nSTATUS: Active alerts detected in system.\n`;
             } else {
-                pretext += `- Weight Data: Pending/Unavailable\n`;
+                pretext += `\nSTATUS: All systems nominal.\n`;
             }
-
-            pretext += `REAL-TIME SENSORS:\n`;
-            pretext += `- Current Temperature: ${currentTemp}\n`;
-            pretext += `- Shock Level: ${shockLevel}\n\n`;
-
-            pretext += `ALERTS SUMMARY:\n`;
-            pretext += `- Active Alerts: ${alertCount}\n`;
         }
 
         // Save to Driver_Pretext.txt via backend
