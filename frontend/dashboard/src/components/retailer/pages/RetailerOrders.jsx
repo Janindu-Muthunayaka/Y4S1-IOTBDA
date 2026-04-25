@@ -102,8 +102,11 @@ function OrdersPage() {
 
   const filteredOrders = useMemo(() => {
     return ALL_ORDERS.filter(o => {
-      const matchesSearch = searchQuery === "" || o.id.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
+      if (searchQuery === "") return true;
+      const query = searchQuery.toLowerCase();
+      const matchesOrderId = o.id.toLowerCase().includes(query);
+      const matchesSupplier = o.supplier.toLowerCase().includes(query);
+      return matchesOrderId || matchesSupplier;
     });
   }, [searchQuery]);
 
@@ -214,7 +217,7 @@ function OrdersPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#F9FAFB" }}>
-                {["ORDER ID","DATE","SUPPLIER","LOADED WT","EXIT WT","QUALITY SCORE","STATUS","ACTION"].map(h => (
+                {["ORDER ID","DATE","SUPPLIER","LOADED WT","EXIT WT","QUALITY SCORE","STATUS"].map(h => (
                   <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#9CA3AF", letterSpacing: 0.5, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -249,9 +252,6 @@ function OrdersPage() {
                     </td>
                     <td style={{ padding: "14px 16px" }}>
                       <span style={{ color: "#10B981", fontSize: 13, fontWeight: 500 }}>{order.status}</span>
-                    </td>
-                    <td style={{ padding: "14px 16px" }}>
-                      <span style={{ color: "#4F46E5", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>View →</span>
                     </td>
                   </tr>
                 );
