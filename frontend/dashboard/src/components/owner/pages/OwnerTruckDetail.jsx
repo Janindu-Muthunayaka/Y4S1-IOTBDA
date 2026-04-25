@@ -7,6 +7,7 @@ import {
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import { computeQuality, riskStatus, fmtDate, fmtTime, timeAgo, Gauge, StatusBadge } from './OwnerHome';
+import { useChatbot } from '../Owner_Chatbot/Owner_ChatbotContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
@@ -21,6 +22,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   const [sensorData, setSensorData] = useState(null);
   const [tripDetail, setTripDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { updateSnapshot } = useChatbot();
 
   // Find the most recent trip for this truck
   const truckTrips = allTrips.filter(t => t.truck_id === truckId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -45,6 +47,37 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
     return () => { mounted = false; clearInterval(iv); };
   }, [latestTrip?.trip_id]);
 
+  const temps = sensorData?.temperature_data || [];
+  const motions = sensorData?.motion_data || [];
+  const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
+  const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
+  const quality = computeQuality(sensorData);
+  const status = riskStatus(quality);
+
+  const w1 = latestTrip?.weight1;
+  const w2 = latestTrip?.weight2;
+  const weightLoss = (w1 != null && w2 != null && w1 > 0) ? (((w1 - w2) / w1) * 100).toFixed(1) : null;
+
+  const isActive = latestTrip?.status === 'ACTIVE';
+
+  useEffect(() => {
+    if (sensorData && latestTrip) {
+      updateSnapshot({
+        type: 'SINGLE_TRIP',
+        trip: latestTrip,
+        sensorData: sensorData,
+        weightLoss: weightLoss,
+        kpis: {
+          qualityScore: quality,
+          tempCompliance: temps.length > 0 ? Math.round(((temps.length - temps.filter(t => Number(t.avg) > -18).length) / temps.length) * 100) : 100,
+          cold: temps.filter(t => Number(t.avg) < -22),
+          hot: temps.filter(t => Number(t.avg) > -18),
+          shocks: motions.filter(m => m.max_accel > 0.5)
+        }
+      });
+    }
+  }, [sensorData, latestTrip, quality, temps, motions, weightLoss, updateSnapshot]);
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: '1rem' }}>
       <div className="owner-spinner" style={{ width: 40, height: 40 }} />
@@ -60,19 +93,6 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
       <button className="owner-btn owner-btn--outline" style={{ marginTop: '1rem' }} onClick={() => navigate('/owner/trucks')}>← Back to Trucks</button>
     </div>
   );
-
-  const temps = sensorData?.temperature_data || [];
-  const motions = sensorData?.motion_data || [];
-  const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
-  const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
-  const quality = computeQuality(sensorData);
-  const status = riskStatus(quality);
-
-  const w1 = latestTrip.weight1;
-  const w2 = latestTrip.weight2;
-  const weightLoss = (w1 != null && w2 != null && w1 > 0) ? (((w1 - w2) / w1) * 100).toFixed(1) : null;
-
-  const isActive = latestTrip.status === 'ACTIVE';
 
   // Charts
   const chartOpts = {

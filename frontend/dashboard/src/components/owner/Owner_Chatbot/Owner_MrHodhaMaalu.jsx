@@ -49,36 +49,63 @@ export default function MrHodhaMaalu() {
     const createPretext = useCallback(async (data) => {
         if (!data) return "No dashboard data available.";
 
-        const { trip, sensorData, kpis } = data;
-        
-        let pretext = `DASHBOARD SNAPSHOT CONTENT:\n`;
-        pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
-        pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
-        pretext += `Status: ${trip?.status || 'N/A'}\n`;
-        pretext += `Quality Score: ${kpis?.qualityScore}/100\n`;
-        pretext += `Temperature Compliance: ${kpis?.tempCompliance}%\n\n`;
-        
-        pretext += `SUMMARY OF ANOMALIES:\n`;
-        pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
-        pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
-        pretext += `- Hot Violations: ${kpis?.hot?.length || 0}\n\n`;
+        let pretext = "";
 
-        pretext += `DETAILED VIOLATION TIMES (Threshold Crosses):\n`;
-        if (kpis?.cold?.length > 0) {
-            pretext += `Low TEMP excursions (<-22°C):\n`;
-            kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.hot?.length > 0) {
-            pretext += `High TEMP excursions (>-18°C):\n`;
-            kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.shocks?.length > 0) {
-            pretext += `SHOCK events (>0.5G):\n`;
-            kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
-        }
+        if (data.type === 'FLEET_STRATEGY_OVERVIEW') {
+            pretext += `FLEET DASHBOARD SNAPSHOT:\n`;
+            pretext += `Total Trips Monitored: ${data.totalTrips}\n`;
+            pretext += `Active Trips: ${data.activeTrips}\n`;
+            pretext += `Average Fleet Quality Score: ${data.fleetAvgQuality}/100\n`;
+            pretext += `Average Fleet Temperature: ${data.fleetAvgTemp}°C\n`;
+            pretext += `Total Alerts Active: ${data.alertsCount}\n\n`;
 
-        if (!kpis?.cold?.length && !kpis?.hot?.length && !kpis?.shocks?.length) {
-            pretext += `No threshold violations recorded. Clean run.\n`;
+            if (data.criticalAlerts && data.criticalAlerts.length > 0) {
+                pretext += `CRITICAL FLEET ALERTS:\n`;
+                data.criticalAlerts.slice(0, 5).forEach(a => {
+                    pretext += `- Truck ${a.truck}: ${a.type} Alert ${a.val ? '(' + parseFloat(a.val).toFixed(1) + '°C)' : ''}\n`;
+                });
+                if (data.criticalAlerts.length > 5) {
+                    pretext += `... and ${data.criticalAlerts.length - 5} other active alerts.\n`;
+                }
+            } else {
+                pretext += `No critical alerts in the fleet.\n`;
+            }
+        } else {
+            const { trip, sensorData, kpis, weightLoss } = data;
+            
+            pretext += `SINGLE TRIP DASHBOARD SNAPSHOT:\n`;
+            pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
+            pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
+            pretext += `Status: ${trip?.status || 'N/A'}\n`;
+            pretext += `Cargo Shrinkage (Weight Loss): ${weightLoss ? weightLoss + '%' : 'Data Unavailable'}\n`;
+            pretext += `Quality Score: ${kpis?.qualityScore}/100\n`;
+            pretext += `Temperature Compliance: ${kpis?.tempCompliance}%\n\n`;
+            
+            pretext += `SUMMARY OF ANOMALIES:\n`;
+            pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
+            pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
+            pretext += `- Hot Violations: ${kpis?.hot?.length || 0}\n\n`;
+
+            pretext += `DETAILED VIOLATION TIMES (Threshold Crosses):\n`;
+            if (kpis?.cold?.length > 0) {
+                pretext += `Low TEMP excursions (<-22°C):\n`;
+                kpis.cold.slice(0, 5).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+                if (kpis.cold.length > 5) pretext += `  ... and ${kpis.cold.length - 5} more events.\n`;
+            }
+            if (kpis?.hot?.length > 0) {
+                pretext += `High TEMP excursions (>-18°C):\n`;
+                kpis.hot.slice(0, 5).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+                if (kpis.hot.length > 5) pretext += `  ... and ${kpis.hot.length - 5} more events.\n`;
+            }
+            if (kpis?.shocks?.length > 0) {
+                pretext += `SHOCK events (>0.5G):\n`;
+                kpis.shocks.slice(0, 5).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
+                if (kpis.shocks.length > 5) pretext += `  ... and ${kpis.shocks.length - 5} more events.\n`;
+            }
+
+            if (!kpis?.cold?.length && !kpis?.hot?.length && !kpis?.shocks?.length) {
+                pretext += `No threshold violations recorded. Clean run.\n`;
+            }
         }
 
         // Save to Owner_Pretext.txt via backend
@@ -91,16 +118,24 @@ export default function MrHodhaMaalu() {
         return pretext;
     }, []);
 
+    // Keep the backend pretext continuously updated as dashboardData changes
+    useEffect(() => {
+        if (dashboardData) {
+            createPretext(dashboardData);
+        }
+    }, [dashboardData, createPretext]);
+
     const toggleChat = async () => {
         if (!isOpen) {
             // Starting fresh chat
-            setMessages([{ role: 'bot', content: "Hi. I'm Mr. Hodha-Maalu, your Business Strategist. How can I help you optimize your fleet today?" }]);
+            if (messages.length === 0) {
+                setMessages([{ role: 'bot', content: "Hi. I'm Mr. Hodha-Maalu, your Business Strategist. How can I help you optimize your fleet today?" }]);
+            }
             await createPretext(dashboardData);
             setIsOpen(true);
         } else {
-            // Ending chat
+            // Hide chat but don't clear memory!
             setIsOpen(false);
-            setMessages([]);
         }
     };
 
@@ -125,9 +160,10 @@ export default function MrHodhaMaalu() {
             
             const systemPrompt = `${persona}\n\nCURRENT DASHBOARD SNAPSHOT:\n${pretextData.content}\n\nINSTRUCTION: If the user is just saying "Hi" or small talk, respond only with a cool greeting. Only analyze the SNAPSHOT above if the user asks about the trip, quality, or "how things are looking". No markdown (no **).`;
             
-            // Format history for Gemini API (Content-based)
+            // Format history for Gemini API (Content-based) with Sliding Window
             const chatHistory = messages
                 .filter(m => m.content !== "Hi. I'm Mr. Hodha-Maalu, your Business Strategist. How can I help you optimize your fleet today?")
+                .slice(-6) // Keep only the last 6 messages (3 turns) to save tokens
                 .map(m => ({
                     role: m.role === 'bot' ? 'model' : 'user',
                     parts: [{ text: m.content }]

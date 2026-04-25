@@ -149,6 +149,7 @@ function OwnerTopBar({ connStatus, lastUpdated, tripCount, sensorCount }) {
 
 // ─── Main Dashboard Content logic ──────────────────────────────────────────────
 function OwnerDashboardContent() {
+  const location = useLocation();
   const [trips, setTrips] = useState([]);
   const [liveData, setLiveData] = useState({});   // { trip_id: sensorDoc }
   const [connStatus, setConnStatus] = useState('connecting');
@@ -258,11 +259,14 @@ function OwnerDashboardContent() {
         const temps = s?.temperature_data || [];
         const motions = s?.motion_data || [];
         
-        // Quality
-        let score = 100;
         const latestTmp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
-        if (latestTmp !== null && latestTmp > -18) score -= 10;
-        score -= motions.filter(m => m.max_accel > 0.5).length * 2;
+        
+        // Quality (use ML model if available)
+        let score = s?.ml_quality !== undefined ? s.ml_quality : 100;
+        if (s?.ml_quality === undefined) {
+          if (latestTmp !== null && latestTmp > -18) score -= 10;
+          score -= motions.filter(m => m.max_accel > 0.5).length * 2;
+        }
         totalQuality += Math.max(0, score);
 
         // Temp
@@ -276,17 +280,20 @@ function OwnerDashboardContent() {
         if (motions.some(m => m.max_accel > 0.5)) alerts.push({ truck: t.truck_id, type: 'SHOCK' });
       });
 
-      updateSnapshot({
-        type: 'FLEET_STRATEGY_OVERVIEW',
-        totalTrips: trips.length,
-        activeTrips: trips.filter(t => t.status === 'ACTIVE').length,
-        fleetAvgQuality: (totalQuality / trips.length).toFixed(1),
-        fleetAvgTemp: tempCount > 0 ? (totalTemp / tempCount).toFixed(1) : '--',
-        alertsCount: alerts.length,
-        criticalAlerts: alerts
-      });
+      // Only update Fleet snapshot if we are NOT on a specific truck details page
+      if (!location.pathname.includes('/owner/trucks/')) {
+        updateSnapshot({
+          type: 'FLEET_STRATEGY_OVERVIEW',
+          totalTrips: trips.length,
+          activeTrips: trips.filter(t => t.status === 'ACTIVE').length,
+          fleetAvgQuality: (totalQuality / trips.length).toFixed(1),
+          fleetAvgTemp: tempCount > 0 ? (totalTemp / tempCount).toFixed(1) : '--',
+          alertsCount: alerts.length,
+          criticalAlerts: alerts
+        });
+      }
     }
-  }, [isLoading, trips, liveData, updateSnapshot]);
+  }, [isLoading, trips, liveData, location.pathname, updateSnapshot]);
 
   // ── Calculations for UI ──────────────────────────────────────────────────────
   const critCount = trips.filter(trip => {
