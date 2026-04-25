@@ -23,7 +23,7 @@ export default function MrHodhaMaalu() {
                 const { data } = await axios.get(`${API_BASE}/api/chatbot/driver/persona`);
                 const content = data.content;
                 setPersona(content);
-                
+
                 // Extract API Key robustly (Look for AIzaSy pattern)
                 const keyMatch = content.match(/AIzaSy[A-Za-z0-9_-]+/);
                 if (keyMatch) {
@@ -50,14 +50,40 @@ export default function MrHodhaMaalu() {
         if (!data) return "No dashboard data available.";
 
         const { trip, sensorData, kpis } = data;
-        
+
+        // Real-time sensor snapshot
+        const temps = sensorData?.temperature_data || [];
+        const motions = sensorData?.motion_data || [];
+        const currentTemp = temps.length > 0 ? `${parseFloat(temps[temps.length - 1].avg).toFixed(1)}°C` : 'Waiting for sensor data';
+        const shockLevel = motions.length > 0
+            ? (Math.max(...motions.map(m => m.max_accel)) > 0.5 ? 'ALERT — Shock events detected' : 'NORMAL (Smooth Driving)')
+            : 'No data yet';
+
+        // Cargo weight
+        const w1 = trip?.weight1 != null ? `${Number(trip.weight1).toFixed(5)} kg` : 'N/A';
+        const w2 = trip?.weight2 != null ? `${Number(trip.weight2).toFixed(5)} kg` : 'N/A';
+        const weightMatch = trip?.weight1 != null && trip?.weight2 != null
+            ? (Math.abs(trip.weight1 - trip.weight2) < 1 ? 'Yes (Cargo Secure)' : 'No (Mismatch Detected)')
+            : 'N/A';
+
         let pretext = `DASHBOARD SNAPSHOT CONTENT:\n`;
         pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
         pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
         pretext += `Status: ${trip?.status || 'N/A'}\n`;
+        pretext += `Direction: ${trip?.trip_direction || 'N/A'}\n`;
         pretext += `Quality Score: ${kpis?.qualityScore}/100\n`;
         pretext += `Temperature Compliance: ${kpis?.tempCompliance}%\n\n`;
-        
+
+        pretext += `CARGO STATUS:\n`;
+        pretext += `- Expected Weight: ${w1}\n`;
+        pretext += `- Current Weight: ${w2}\n`;
+        pretext += `- Weight Match: ${weightMatch}\n`;
+        pretext += `- RFID Status: Warehouse Verified\n\n`;
+
+        pretext += `REAL-TIME CONDITIONS:\n`;
+        pretext += `- Current Temperature: ${currentTemp}\n`;
+        pretext += `- Shock Level: ${shockLevel}\n\n`;
+
         pretext += `SUMMARY OF ANOMALIES:\n`;
         pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
         pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
@@ -91,6 +117,7 @@ export default function MrHodhaMaalu() {
         return pretext;
     }, []);
 
+
     const toggleChat = async () => {
         if (!isOpen) {
             // Starting fresh chat
@@ -122,9 +149,9 @@ export default function MrHodhaMaalu() {
         try {
             // Build the prompt for Gemini
             const { data: pretextData } = await axios.get(`${API_BASE}/api/chatbot/driver/pretext`);
-            
+
             const systemPrompt = `${persona}\n\nCURRENT DASHBOARD SNAPSHOT:\n${pretextData.content}\n\nINSTRUCTION: If the user is just saying "Hi" or small talk, respond only with a cool greeting. Only analyze the SNAPSHOT above if the user asks about the trip, quality, or "how things are looking". No markdown (no **).`;
-            
+
             // Format history for Gemini API (Content-based)
             const chatHistory = messages
                 .filter(m => m.content !== "Hi. I'm Mr. Hodha-Maalu, your Trip Assistant. How's the drive going?")
@@ -184,15 +211,15 @@ export default function MrHodhaMaalu() {
                     </div>
 
                     <div className="chat-input-area">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Ask about your trip..."
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                         />
-                        <button 
-                            className="send-btn" 
+                        <button
+                            className="send-btn"
                             onClick={handleSendMessage}
                             disabled={!inputValue.trim() || isLoading}
                         >

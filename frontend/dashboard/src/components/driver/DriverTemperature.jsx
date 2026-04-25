@@ -13,6 +13,7 @@ function DriverTemperatureContent() {
     const [trips, setTrips] = useState([]);
     const [selectedTripId, setSelectedTripId] = useState('');
     const [sensorData, setSensorData] = useState(null);
+    const [tripDetails, setTripDetails] = useState(null);
     const { updateSnapshot } = useChatbot();
 
     // Fetch trips
@@ -41,6 +42,7 @@ function DriverTemperatureContent() {
             try {
                 const { data } = await axios.get(`${API_BASE}/api/trips/${selectedTripId}/sensors`);
                 if (isMounted) {
+                    setTripDetails(data.trip || null);
                     setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
                 }
             } catch (err) { console.error(err); }
@@ -64,6 +66,27 @@ function DriverTemperatureContent() {
     const lastUpdatedStr = sensorData?.last_updated
         ? new Date(sensorData.last_updated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
         : '--';
+
+    // Push live data to chatbot context
+    useEffect(() => {
+        if (!tripDetails || !sensorData) return;
+        const tempData = sensorData.temperature_data || [];
+        const motionData = sensorData.motion_data || [];
+        const shockCount = motionData.filter(m => m.max_accel > 0.5).length;
+        const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
+        const isSafe = currentTempVal !== null && currentTempVal <= -18;
+        updateSnapshot({
+            trip: tripDetails,
+            sensorData,
+            kpis: {
+                qualityScore: 100 - (shockCount * 2),
+                tempCompliance: isSafe ? 100 : (currentTempVal === null ? 100 : 0),
+                shocks: motionData.filter(m => m.max_accel > 0.5),
+                cold: tempData.filter(t => Number(t.avg) < -22),
+                hot: tempData.filter(t => Number(t.avg) > -18),
+            }
+        });
+    }, [tripDetails, sensorData, updateSnapshot]);
 
     // Gauge logic — range -30 to 0
     const gaugeMin = -30, gaugeMax = 0;
@@ -116,17 +139,17 @@ function DriverTemperatureContent() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                                         <div className="driver-avatar" style={{ width: '34px', height: '34px', flexShrink: 0, marginTop: '2px' }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#7a5c3a"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#7a5c3a"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#1c1c1e', lineHeight: 1.2 }}>Temperature<br/>Monitoring</div>
-                                            <div style={{ fontSize: '9.5px', color: '#8e8e93', marginTop: '3px', lineHeight: 1.4 }}>Live sensor data<br/>&amp; analytics</div>
+                                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#1c1c1e', lineHeight: 1.2 }}>Temperature<br />Monitoring</div>
+                                            <div style={{ fontSize: '9.5px', color: '#8e8e93', marginTop: '3px', lineHeight: 1.4 }}>Live sensor data<br />&amp; analytics</div>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: 0, flexShrink: 1 }}>
                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
                                         </div>
                                         <select
                                             className="dt-sensor-select"
@@ -147,8 +170,8 @@ function DriverTemperatureContent() {
                                     <span style={{ fontSize: '13px', fontWeight: 700, color: '#1c1c1e' }}>Current Temperature</span>
                                     <div className={`dt-temp-badge ${isTempSafe ? 'safe' : 'danger'}`}>
                                         {isTempSafe
-                                            ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                            : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ff3b30" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                            ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                            : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ff3b30" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                         }
                                         <span>{isTempSafe ? 'Optimal' : 'Alert'}</span>
                                     </div>
@@ -171,9 +194,9 @@ function DriverTemperatureContent() {
                                         {/* Red: -2 to 0 */}
                                         {arcPath(startDeg + ((-2 - gaugeMin) / (gaugeMax - gaugeMin)) * totalArc, endDeg, r, '#ff3b30', 14)}
                                         {/* Needle */}
-                                        <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#1c1c1e" strokeWidth="3" strokeLinecap="round"/>
-                                        <circle cx={cx} cy={cy} r="7" fill="#1c1c1e"/>
-                                        <circle cx={cx} cy={cy} r="3.5" fill="#ffffff"/>
+                                        <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#1c1c1e" strokeWidth="3" strokeLinecap="round" />
+                                        <circle cx={cx} cy={cy} r="7" fill="#1c1c1e" />
+                                        <circle cx={cx} cy={cy} r="3.5" fill="#ffffff" />
                                     </svg>
                                 </div>
 
@@ -189,7 +212,7 @@ function DriverTemperatureContent() {
                                 <div className="dt-stats-grid">
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a4aff" strokeWidth="2" strokeLinecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a4aff" strokeWidth="2" strokeLinecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>
                                             <span>Avg Temp</span>
                                         </div>
                                         <div className="dt-stat-value">{avgTemp !== '--' ? `${avgTemp}°C` : '--'}</div>
@@ -197,7 +220,7 @@ function DriverTemperatureContent() {
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2" strokeLinecap="round">
-                                                <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+                                                <circle cx="12" cy="12" r="10" /><polyline points="12,6 12,12 16,14" />
                                             </svg>
                                             <span>Data Points</span>
                                         </div>
@@ -206,7 +229,7 @@ function DriverTemperatureContent() {
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a4aff" strokeWidth="2.5" strokeLinecap="round">
-                                                <line x1="12" y1="4" x2="12" y2="20"/><polyline points="6 14 12 20 18 14"/>
+                                                <line x1="12" y1="4" x2="12" y2="20" /><polyline points="6 14 12 20 18 14" />
                                             </svg>
                                             <span>Min Temp</span>
                                         </div>
@@ -215,7 +238,7 @@ function DriverTemperatureContent() {
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff3b30" strokeWidth="2.5" strokeLinecap="round">
-                                                <line x1="12" y1="20" x2="12" y2="4"/><polyline points="6 10 12 4 18 10"/>
+                                                <line x1="12" y1="20" x2="12" y2="4" /><polyline points="6 10 12 4 18 10" />
                                             </svg>
                                             <span>Max Temp</span>
                                         </div>
@@ -227,7 +250,7 @@ function DriverTemperatureContent() {
                             {/* Temperature History Card */}
                             <div className="driver-card">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1c1c1e', lineHeight: 1.4 }}>Temperature<br/>History</span>
+                                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1c1c1e', lineHeight: 1.4 }}>Temperature<br />History</span>
                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '2px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30d158' }}></div>
@@ -269,7 +292,7 @@ function DriverTemperatureContent() {
                                         </>
                                     ) : (
                                         <div style={{ height: '88px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#aaa' }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>
                                             <span style={{ fontSize: '10px' }}>No temperature data yet</span>
                                         </div>
                                     )}

@@ -13,6 +13,7 @@ function DriverShocksContent() {
     const [trips, setTrips] = useState([]);
     const [selectedTripId, setSelectedTripId] = useState('');
     const [sensorData, setSensorData] = useState(null);
+    const [tripDetails, setTripDetails] = useState(null);
     const { updateSnapshot } = useChatbot();
 
     // Fetch trips
@@ -38,7 +39,10 @@ function DriverShocksContent() {
         const fetch = async () => {
             try {
                 const { data } = await axios.get(`${API_BASE}/api/trips/${selectedTripId}/sensors`);
-                if (alive) setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
+                if (alive) {
+                    setTripDetails(data.trip || null);
+                    setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
+                }
             } catch (err) { console.error(err); }
         };
         fetch();
@@ -67,6 +71,26 @@ function DriverShocksContent() {
         }));
     })();
 
+    // Push live data to chatbot context
+    useEffect(() => {
+        if (!tripDetails || !sensorData) return;
+        const tempData = sensorData.temperature_data || [];
+        const motionData = sensorData.motion_data || [];
+        const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
+        const isSafe = currentTempVal !== null && currentTempVal <= -18;
+        updateSnapshot({
+            trip: tripDetails,
+            sensorData,
+            kpis: {
+                qualityScore: 100 - (shockCount * 2),
+                tempCompliance: isSafe ? 100 : (currentTempVal === null ? 100 : 0),
+                shocks: motionData.filter(m => m.max_accel > 0.5),
+                cold: tempData.filter(t => Number(t.avg) < -22),
+                hot: tempData.filter(t => Number(t.avg) > -18),
+            }
+        });
+    }, [tripDetails, sensorData, shockCount, updateSnapshot]);
+
 
     return (
         <div className="driver-dashboard-wrapper">
@@ -94,7 +118,7 @@ function DriverShocksContent() {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <div className="ds-icon-box" style={{ background: '#f0f0ff' }}>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a4aff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12"/>
+                                                <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" />
                                             </svg>
                                         </div>
                                         <div>
@@ -127,7 +151,7 @@ function DriverShocksContent() {
                                     </div>
                                     <div className="ds-icon-box" style={{ width: '44px', height: '44px', borderRadius: '12px', background: isNormal ? '#f0fff4' : '#fff0f0' }}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={isNormal ? '#30d158' : '#ff3b30'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12"/>
+                                            <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" />
                                         </svg>
                                     </div>
                                 </div>
@@ -135,8 +159,8 @@ function DriverShocksContent() {
                                 {/* Status badge */}
                                 <div className={`ds-status-badge ${isNormal ? 'safe' : 'danger'}`}>
                                     {isNormal
-                                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#30d158"/><path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#ff3b30"/><line x1="12" y1="8" x2="12" y2="12" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="12" y1="16" x2="12.01" y2="16" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
+                                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#30d158" /><path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#ff3b30" /><line x1="12" y1="8" x2="12" y2="12" stroke="#fff" strokeWidth="2" strokeLinecap="round" /><line x1="12" y1="16" x2="12.01" y2="16" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>
                                     }
                                     <span>{isNormal ? 'No critical shock detected' : `${harshEvents.length} harsh event${harshEvents.length !== 1 ? 's' : ''} recorded`}</span>
                                 </div>
@@ -162,7 +186,7 @@ function DriverShocksContent() {
                                         </div>
                                     )) : (
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#aaa', height: '100%' }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12"/></svg>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" /></svg>
                                             <span style={{ fontSize: '10px' }}>No shock data yet</span>
                                         </div>
                                     )}
@@ -209,9 +233,9 @@ function DriverShocksContent() {
                                     <div key={i} className="ds-event-row" style={{ borderBottom: i < Math.min(shockEvents.length, 3) - 1 ? '1px solid #f5f5f5' : 'none' }}>
                                         <div className="ds-event-icon" style={{ background: '#fff8e1' }}>
                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#ffcc00"/>
-                                                <line x1="12" y1="9" x2="12" y2="13" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-                                                <line x1="12" y1="17" x2="12.01" y2="17" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#ffcc00" />
+                                                <line x1="12" y1="9" x2="12" y2="13" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                                                <line x1="12" y1="17" x2="12.01" y2="17" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
                                             </svg>
                                         </div>
                                         <div style={{ flex: 1 }}>
@@ -231,7 +255,7 @@ function DriverShocksContent() {
                                 <div className="ds-event-row" style={{ borderBottom: shockEvents.length > 0 ? 'none' : undefined }}>
                                     <div className="ds-event-icon" style={{ background: '#f0f0ff' }}>
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4a4aff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12"/>
+                                            <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" />
                                         </svg>
                                     </div>
                                     <div style={{ flex: 1 }}>
@@ -245,7 +269,7 @@ function DriverShocksContent() {
                                 {isNormal && (
                                     <div className="ds-event-row" style={{ borderTop: '1px solid #f5f5f5', borderBottom: 'none' }}>
                                         <div className="ds-event-icon" style={{ background: '#f0fff4' }}>
-                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#30d158"/><path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#30d158" /><path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                         </div>
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '12px', fontWeight: 700, color: '#111' }}>Stable ride maintained</div>

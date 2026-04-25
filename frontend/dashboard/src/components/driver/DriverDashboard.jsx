@@ -92,20 +92,24 @@ function DriverDashboardContent() {
 
     // Push data to chatbot
     useEffect(() => {
-        if (tripDetails && sensorData) {
-            updateSnapshot({
-                trip: tripDetails,
-                sensorData: sensorData,
-                kpis: {
-                    qualityScore: 100 - (shockEventsCount * 2), // Simplified for driver
-                    tempCompliance: isTempSafe ? 100 : 0,
-                    shocks: sensorData.motion_data.filter(m => m.max_accel > 0.5),
-                    cold: sensorData.temperature_data.filter(t => Number(t.avg) < -22),
-                    hot: sensorData.temperature_data.filter(t => Number(t.avg) > -18)
-                }
-            });
-        }
-    }, [tripDetails, sensorData, shockEventsCount, isTempSafe, updateSnapshot]);
+        if (!tripDetails || !sensorData) return;
+        const tempData = sensorData.temperature_data || [];
+        const motionData = sensorData.motion_data || [];
+        const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
+        const isSafe = currentTempVal !== null && currentTempVal <= -18;
+        const shocks = motionData.filter(m => m.max_accel > 0.5);
+        updateSnapshot({
+            trip: tripDetails,
+            sensorData,
+            kpis: {
+                qualityScore: 100 - (shocks.length * 2),
+                tempCompliance: isSafe ? 100 : (currentTempVal === null ? 100 : 0),
+                shocks,
+                cold: tempData.filter(t => Number(t.avg) < -22),
+                hot: tempData.filter(t => Number(t.avg) > -18),
+            }
+        });
+    }, [tripDetails, sensorData, updateSnapshot]);
 
     return (
         <div className="driver-dashboard-wrapper">
