@@ -304,9 +304,10 @@ function DriverTemperatureContent() {
                         </div>
                         {/* END MAIN CONTENT */}
                     </div>
+                    {/* Integrated Chatbot inside phone screen */}
+                    <Driver_MrHodhaMaalu />
                 </div>
             </div>
-            <Driver_MrHodhaMaalu />
         </div>
     );
 }

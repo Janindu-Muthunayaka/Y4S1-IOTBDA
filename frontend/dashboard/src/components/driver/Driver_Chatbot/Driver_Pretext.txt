@@ -1,11 +1,9 @@
 DASHBOARD SNAPSHOT CONTENT:
 Currently Viewing: Main Dashboard
-Trip: TRIP-C3809540-1777122372378 (Complete)
+Trip: TRIP-C3809540-1777135936387 (Complete)
 
 --- TRIP OVERVIEW ---
 Route: Warehouse → Retailer
-Cargo: Mismatch (Exp: 28.214 kg, Cur: 25.581 kg)
-Temp: -17.6°C (0% Compliance)
-Shocks: ALERT (2 events)
-
-STATUS: Active alerts detected in system.
+Cargo: Mismatch (Exp: 114.528 kg, Cur: 112.912 kg)
+Temp: -18.6°C (100% Compliance)
+Shocks: NORMAL (0 events)

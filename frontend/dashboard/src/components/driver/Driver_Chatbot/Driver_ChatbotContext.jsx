@@ -13,13 +13,22 @@ export const useChatbot = () => {
 
 export const ChatbotProvider = ({ children }) => {
     const [dashboardData, setDashboardData] = useState(null);
+    const [isOpen, setIsOpen] = useState(false);
 
     const updateSnapshot = useCallback((data) => {
         setDashboardData(data);
     }, []);
 
+    const toggleChat = useCallback(() => {
+        setIsOpen(prev => !prev);
+    }, []);
+
+    const closeChat = useCallback(() => {
+        setIsOpen(false);
+    }, []);
+
     return (
-        <ChatbotContext.Provider value={{ dashboardData, updateSnapshot }}>
+        <ChatbotContext.Provider value={{ dashboardData, updateSnapshot, isOpen, setIsOpen, toggleChat, closeChat }}>
             {children}
         </ChatbotContext.Provider>
     );

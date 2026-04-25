@@ -23,7 +23,7 @@ export default function MrHodhaMaalu() {
                 const { data } = await axios.get(`${API_BASE}/api/chatbot/persona`);
                 const content = data.content;
                 setPersona(content);
-                
+
                 // Extract API Key robustly (Look for AIzaSy pattern)
                 const keyMatch = content.match(/AIzaSy[A-Za-z0-9_-]+/);
                 if (keyMatch) {
@@ -45,7 +45,7 @@ export default function MrHodhaMaalu() {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
-    
+
     const createPretext = useCallback(async (data) => {
         if (!data) return "No dashboard data available.";
 
@@ -55,7 +55,7 @@ export default function MrHodhaMaalu() {
             pretext += `View: Fleet Overview\n`;
             pretext += `Total Trips: ${data.totalTrips || 0}\n`;
             pretext += `Active Trips: ${data.activeTrips || 0}\n\n`;
-            
+
             pretext += `SUMMARY OF FLEET ANOMALIES & NOTIFICATIONS:\n`;
             if (data.alerts && data.alerts.length > 0) {
                 data.alerts.forEach(a => {
@@ -72,7 +72,7 @@ export default function MrHodhaMaalu() {
             pretext += `Status: ${trip?.status || 'N/A'}\n`;
             pretext += `Quality Score: ${kpis?.qualityScore ?? 'N/A'}/100\n`;
             pretext += `Temperature Compliance: ${kpis?.tempCompliance ?? 'N/A'}%\n\n`;
-            
+
             pretext += `SUMMARY OF ANOMALIES:\n`;
             pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
             pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
@@ -148,9 +148,9 @@ export default function MrHodhaMaalu() {
         try {
             // Build the prompt for Gemini
             const { data: pretextData } = await axios.get(`${API_BASE}/api/chatbot/pretext`);
-            
+
             const systemPrompt = `${persona}\n\nCURRENT DASHBOARD SNAPSHOT:\n${pretextData.content}\n\nINSTRUCTION: If the user is just saying "Hi" or small talk, respond only with a cool greeting. Only analyze the SNAPSHOT above if the user asks about the trip, quality, or "how things are looking". No markdown (no **).`;
-            
+
             // Format history for Gemini API (Content-based)
             const chatHistory = messages
                 .filter(m => m.content !== "Hi, i'm Mr Hodha-Maalu, what can help you with?")
@@ -210,15 +210,15 @@ export default function MrHodhaMaalu() {
                     </div>
 
                     <div className="chat-input-area">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Ask about cargo quality..."
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                         />
-                        <button 
-                            className="send-btn" 
+                        <button
+                            className="send-btn"
                             onClick={handleSendMessage}
                             disabled={!inputValue.trim() || isLoading}
                         >
