@@ -61,6 +61,58 @@ async function buildFullPayload() {
         const sensorMap = {};
         allSensors.forEach(s => { sensorMap[s.trip_id] = s; });
 
+        // Build payload for batch prediction
+        const mlPayload = trips.map(trip => {
+            const sensorData = sensorMap[trip.trip_id] || {};
+            let durationMinutes = 165;
+            if (trip.timestamp && sensorData.last_updated) {
+                const start = new Date(trip.timestamp);
+                const end = new Date(sensorData.last_updated);
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                    durationMinutes = (end - start) / 60000;
+                }
+            }
+            return { trip, sensorData, duration_minutes: durationMinutes };
+        });
+
+        // Execute ML script asynchronously
+        const pythonScriptPath = path.join(__dirname, 'QualityScore', 'predict_quality.py');
+        const pythonProcess = spawn('python', [pythonScriptPath]);
+        
+        let dataString = '';
+        pythonProcess.stdout.on('data', (data) => dataString += data.toString());
+        
+        const mlScores = await new Promise((resolve) => {
+            pythonProcess.on('close', (code) => {
+                if (code !== 0) {
+                    resolve({});
+                } else {
+                    try {
+                        const lines = dataString.trim().split('\n');
+                        const result = JSON.parse(lines[lines.length - 1]);
+                        if (result.success && result.scores) {
+                            resolve(result.scores);
+                        } else {
+                            resolve({});
+                        }
+                    } catch (e) {
+                        resolve({});
+                    }
+                }
+            });
+            pythonProcess.stdin.write(JSON.stringify(mlPayload));
+            pythonProcess.stdin.end();
+        });
+
+        // Inject ML scores into sensorMap for frontend consumption
+        Object.keys(mlScores).forEach(tripId => {
+            if (sensorMap[tripId]) {
+                sensorMap[tripId].ml_quality = mlScores[tripId];
+            } else {
+                sensorMap[tripId] = { ml_quality: mlScores[tripId] };
+            }
+        });
+
         return { trips, sensorMap };
     } catch (err) {
         console.error('[Server] Error building payload:', err.message);

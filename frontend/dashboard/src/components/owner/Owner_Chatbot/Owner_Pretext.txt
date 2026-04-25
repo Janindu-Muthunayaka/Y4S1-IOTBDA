@@ -1,0 +1,14 @@
+DASHBOARD SNAPSHOT CONTENT:
+Trip ID: N/A
+Truck: N/A
+Status: N/A
+Quality Score: undefined/100
+Temperature Compliance: undefined%
+
+SUMMARY OF ANOMALIES:
+- Shock Events: 0
+- Cold Violations: 0
+- Hot Violations: 0
+
+DETAILED VIOLATION TIMES (Threshold Crosses):
+No threshold violations recorded. Clean run.

@@ -7,48 +7,48 @@ function buildAlerts(trips, liveData) {
 
   trips.forEach(trip => {
     const sensors = liveData[trip.trip_id];
-    const temps   = sensors?.temperature_data || [];
+    const temps = sensors?.temperature_data || [];
     const motions = sensors?.motion_data || [];
     const quality = computeQuality(sensors);
 
-    // Check every temperature reading for breaches
-    temps.forEach(t => {
-      const val = Number(t.avg);
-      if (val > -18) {
-        alerts.push({
-          id: `temp-${trip.trip_id}-${t.time}`,
-          type: 'crit',
-          category: 'temperature',
-          kind: 'High Temperature',
-          truck_id: trip.truck_id,
-          trip_id: trip.trip_id,
-          time: sensors?.last_updated || trip.timestamp,
-          timeLabel: t.time,
-          desc: `Temperature reached ${val.toFixed(1)}°C — safe limit is ≤ -18°C`,
-          icon: '🌡️',
-          value: `${val.toFixed(1)}°C`,
-        });
-      }
-    });
+    // Temperature Breach (aggregate to 1 per trip)
+    const critTemps = temps.filter(t => Number(t.avg) > -18);
+    if (critTemps.length > 0) {
+      const maxTempReading = critTemps.reduce((max, t) => Number(t.avg) > Number(max.avg) ? t : max, critTemps[0]);
+      const maxVal = Number(maxTempReading.avg);
+      alerts.push({
+        id: `temp-${trip.trip_id}`,
+        type: 'crit',
+        category: 'temperature',
+        kind: 'High Temperature',
+        truck_id: trip.truck_id,
+        trip_id: trip.trip_id,
+        time: sensors?.last_updated || trip.timestamp,
+        timeLabel: maxTempReading.time,
+        desc: `Temperature breached safe threshold for ${critTemps.length} readings, peaking at ${maxVal.toFixed(1)}°C.`,
+        icon: '🌡️',
+        value: `${maxVal.toFixed(1)}°C`,
+      });
+    }
 
-    // Vibration spikes
-    motions.forEach(m => {
-      if (m.max_accel > 0.5) {
-        alerts.push({
-          id: `vib-${trip.trip_id}-${m.time}`,
-          type: 'warn',
-          category: 'vibration',
-          kind: 'Vibration Spike',
-          truck_id: trip.truck_id,
-          trip_id: trip.trip_id,
-          time: sensors?.last_updated || trip.timestamp,
-          timeLabel: m.time,
-          desc: `Accelerometer registered ${m.max_accel.toFixed(2)}g force spike`,
-          icon: '⚡',
-          value: `${m.max_accel.toFixed(2)}g`,
-        });
-      }
-    });
+    // Vibration spikes (aggregate to 1 per trip)
+    const shockMotions = motions.filter(m => m.max_accel > 0.5);
+    if (shockMotions.length > 0) {
+      const maxMotion = shockMotions.reduce((max, m) => m.max_accel > max.max_accel ? m : max, shockMotions[0]);
+      alerts.push({
+        id: `vib-${trip.trip_id}`,
+        type: 'warn',
+        category: 'vibration',
+        kind: 'Vibration Spikes',
+        truck_id: trip.truck_id,
+        trip_id: trip.trip_id,
+        time: sensors?.last_updated || trip.timestamp,
+        timeLabel: maxMotion.time,
+        desc: `Registered ${shockMotions.length} significant force spikes (peak: ${maxMotion.max_accel.toFixed(2)}g).`,
+        icon: '⚡',
+        value: `${maxMotion.max_accel.toFixed(2)}g`,
+      });
+    }
 
     // Weight anomaly
     if (trip.weight1 != null && trip.weight2 != null && trip.weight1 > 0) {
@@ -95,9 +95,9 @@ function buildAlerts(trips, liveData) {
 function AlertRow({ alert, isFirst }) {
   const isCrit = alert.type === 'crit';
   const borderColor = isCrit ? '#dc2626' : '#d97706';
-  const bgColor     = isCrit ? '#fef2f2' : '#fffbeb';
-  const textColor   = isCrit ? '#dc2626' : '#d97706';
-  const badgeCls    = isCrit ? 'o-badge--crit' : 'o-badge--warn';
+  const bgColor = isCrit ? '#fef2f2' : '#fffbeb';
+  const textColor = isCrit ? '#dc2626' : '#d97706';
+  const badgeCls = isCrit ? 'o-badge--crit' : 'o-badge--warn';
 
   const fmtTime = d => {
     if (!d) return '--';
@@ -217,8 +217,8 @@ function VerticalTimeline({ alerts }) {
           {/* Timeline items */}
           {items.map((a, i) => {
             const isCrit = a.type === 'crit';
-            const dotColor  = isCrit ? '#dc2626' : '#d97706';
-            const bgColor   = isCrit ? '#fef2f2' : '#fffbeb';
+            const dotColor = isCrit ? '#dc2626' : '#d97706';
+            const bgColor = isCrit ? '#fef2f2' : '#fffbeb';
             const isLast = i === items.length - 1;
 
             return (
@@ -287,23 +287,23 @@ export default function OwnerAlerts({ trips, liveData }) {
 
   const allAlerts = useMemo(() => buildAlerts(trips, liveData), [trips, liveData]);
 
-  const critAlerts   = allAlerts.filter(a => a.type === 'crit');
-  const warnAlerts   = allAlerts.filter(a => a.type === 'warn');
-  const tempAlerts   = allAlerts.filter(a => a.category === 'temperature');
-  const vibAlerts    = allAlerts.filter(a => a.category === 'vibration');
+  const critAlerts = allAlerts.filter(a => a.type === 'crit');
+  const warnAlerts = allAlerts.filter(a => a.type === 'warn');
+  const tempAlerts = allAlerts.filter(a => a.category === 'temperature');
+  const vibAlerts = allAlerts.filter(a => a.category === 'vibration');
   const weightAlerts = allAlerts.filter(a => a.category === 'weight');
 
-  const filtered = filter === 'all'         ? allAlerts
-    : filter === 'crit'        ? critAlerts
-    : filter === 'warn'        ? warnAlerts
-    : filter === 'temperature' ? tempAlerts
-    : filter === 'vibration'   ? vibAlerts
-    : filter === 'weight'      ? weightAlerts
-    : allAlerts;
+  const filtered = filter === 'all' ? allAlerts
+    : filter === 'crit' ? critAlerts
+      : filter === 'warn' ? warnAlerts
+        : filter === 'temperature' ? tempAlerts
+          : filter === 'vibration' ? vibAlerts
+            : filter === 'weight' ? weightAlerts
+              : allAlerts;
 
   // Export CSV
   const exportCSV = () => {
-    const rows = [['Type','Category','Kind','Truck ID','Description','Time']];
+    const rows = [['Type', 'Category', 'Kind', 'Truck ID', 'Description', 'Time']];
     allAlerts.forEach(a => rows.push([
       a.type, a.category, a.kind, a.truck_id,
       `"${a.desc}"`,
@@ -315,12 +315,12 @@ export default function OwnerAlerts({ trips, liveData }) {
   };
 
   const FILTERS = [
-    { key: 'all',         label: `All (${allAlerts.length})` },
-    { key: 'crit',        label: `🔴 Critical (${critAlerts.length})` },
-    { key: 'warn',        label: `⚠️ Warning (${warnAlerts.length})` },
+    { key: 'all', label: `All (${allAlerts.length})` },
+    { key: 'crit', label: `🔴 Critical (${critAlerts.length})` },
+    { key: 'warn', label: `⚠️ Warning (${warnAlerts.length})` },
     { key: 'temperature', label: `🌡️ Temp (${tempAlerts.length})` },
-    { key: 'vibration',   label: `⚡ Vibration (${vibAlerts.length})` },
-    { key: 'weight',      label: `⚖️ Weight (${weightAlerts.length})` },
+    { key: 'vibration', label: `⚡ Vibration (${vibAlerts.length})` },
+    { key: 'weight', label: `⚖️ Weight (${weightAlerts.length})` },
   ];
 
   return (
