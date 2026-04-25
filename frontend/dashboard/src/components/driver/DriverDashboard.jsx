@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ChatbotProvider as Driver_ChatbotProvider, useChatbot } from './Driver_Chatbot/Driver_ChatbotContext';
 import Driver_MrHodhaMaalu from './Driver_Chatbot/Driver_MrHodhaMaalu';
+import DriverSidebar from './DriverSidebar';
 import './driver.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -74,16 +75,18 @@ function DriverDashboardContent() {
     const shockDesc = shockEventsCount === 0 ? 'Smooth Driving' : `${shockEventsCount} Events`;
 
     // Weights
-    const w1 = tripDetails?.weight1 ?? tripDetails?.start_weight ?? tripDetails?.weight ?? '--';
-    const w2 = tripDetails?.weight2 ?? tripDetails?.end_weight ?? '--';
+    const w1 = tripDetails?.startWeight ?? tripDetails?.start_weight ?? tripDetails?.weight ?? '--';
+    const w2 = tripDetails?.endWeight ?? tripDetails?.end_weight ?? '--';
 
     // Formatter
     const fmtT = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
-    const isOutbound = tripDetails?.trip_direction === 'OUTBOUND';
+    const isOutbound = tripDetails?.trip_type === 'OUTGOING';
     const step1Label = "Left Warehouse";
-    const step2Label = isOutbound ? "At Customer" : "At Supplier";
+    const step2Label = isOutbound ? "At Retailer" : "At Supplier";
     const step3Label = "Entered Warehouse";
+
+    const routeText = isOutbound ? 'Warehouse → Retailer' : 'Supplier → Warehouse';
 
     const time1 = fmtT(tripDetails?.timestamp);
     const tempsArr = sensorData?.temperature_data || [];
@@ -94,6 +97,7 @@ function DriverDashboardContent() {
     useEffect(() => {
         if (tripDetails && sensorData) {
             updateSnapshot({
+                currentPage: 'Main Dashboard',
                 trip: tripDetails,
                 sensorData: sensorData,
                 kpis: {
@@ -110,68 +114,11 @@ function DriverDashboardContent() {
     return (
         <div className="driver-dashboard-wrapper">
             <div className="driver-phone-frame">
-                <div className="driver-status-bar">Driver – Dashboard</div>
-                <div className="driver-screen">
+                <div className="driver-screen" style={{ marginTop: '14px' }}>
                     <div className="driver-dynamic-island"></div>
                     <div className="driver-inner-scroll">
                         {/* LEFT SIDEBAR NAV */}
-                        <div className="driver-sidebar">
-                            <div className="driver-avatar-container">
-                                <div className="driver-avatar">
-                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="#7a5c3a"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
-                                </div>
-                                <span className="driver-avatar-name">Bumal</span>
-                                <span className="driver-avatar-role">Driver</span>
-                            </div>
-                            <div className="driver-divider"></div>
-
-                            <div className="driver-nav-item active">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                                </svg>
-                                <span>Dashboard</span>
-                            </div>
-
-                            <div className="driver-nav-item">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
-                                </svg>
-                                <span>Temp</span>
-                            </div>
-
-                            <div className="driver-nav-item">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" />
-                                </svg>
-                                <span>Shocks</span>
-                            </div>
-
-                            <div className="driver-nav-item" style={{ position: 'relative' }}>
-                                <div style={{ position: 'relative', display: 'inline-block' }}>
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                    </svg>
-                                    {(!isTempSafe || shockEventsCount > 0) && (
-                                        <div style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', background: '#ff3b30', borderRadius: '50%', border: '1.5px solid #ffffff' }}></div>
-                                    )}
-                                </div>
-                                <span>Notif</span>
-                            </div>
-
-                            <div style={{ flex: 1 }}></div>
-
-                            <div className="driver-nav-item">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="3" />
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                                </svg>
-                                <span>Settings</span>
-                            </div>
-                        </div>
+                        <DriverSidebar activeItem="dashboard" hasAlert={!isTempSafe || shockEventsCount > 0} />
 
                         {/* MAIN CONTENT */}
                         <div className="driver-main-content">
@@ -210,8 +157,8 @@ function DriverDashboardContent() {
                             <div className="driver-card">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                                     <span style={{ fontSize: '15px', fontWeight: 700, color: '#1c1c1e' }}>{tripDetails?.truck_id || '----'}</span>
-                                    <div className={`driver-trip-badge ${tripDetails?.status === 'COMPLETED' ? 'completed' : ''}`}>
-                                        {tripDetails?.status === 'COMPLETED' ? (
+                                    <div className={`driver-trip-badge ${tripDetails?.status === 'Complete' ? 'completed' : ''}`}>
+                                        {tripDetails?.status === 'Complete' ? (
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                                         ) : (
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f0a500" strokeWidth="2.5"><rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 3v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
@@ -219,7 +166,7 @@ function DriverDashboardContent() {
                                         <span className="driver-trip-badge-text">{tripDetails?.status || 'In Transit'}</span>
                                     </div>
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#8e8e93', marginBottom: '14px' }}>{tripDetails?.trip_direction || 'Colombo → Kandy'}</div>
+                                <div style={{ fontSize: '11px', color: '#8e8e93', marginBottom: '14px' }}>{routeText}</div>
 
                                 {/* Progress Steps */}
                                 <div className="driver-progress-container">
@@ -232,22 +179,22 @@ function DriverDashboardContent() {
                                     <div className="driver-step-line done"></div>
 
                                     <div className="driver-step">
-                                        <div className={`driver-step-circle ${tripDetails?.status === 'ACTIVE' || tripDetails?.status === 'COMPLETED' ? 'done' : 'pending'}`}>
-                                            {tripDetails?.status === 'ACTIVE' || tripDetails?.status === 'COMPLETED' ? (
+                                        <div className={`driver-step-circle ${tripDetails?.status === 'In Transit' || tripDetails?.status === 'Complete' ? 'done' : 'pending'}`}>
+                                            {tripDetails?.status === 'In Transit' || tripDetails?.status === 'Complete' ? (
                                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                                             ) : null}
                                         </div>
-                                        <span className={`driver-step-text ${tripDetails?.status === 'ACTIVE' || tripDetails?.status === 'COMPLETED' ? 'done' : 'pending'}`}>{step2Label}</span>
+                                        <span className={`driver-step-text ${tripDetails?.status === 'In Transit' || tripDetails?.status === 'Complete' ? 'done' : 'pending'}`}>{step2Label}</span>
                                     </div>
-                                    <div className={`driver-step-line ${tripDetails?.status === 'ACTIVE' ? 'active-to-pending' : (tripDetails?.status === 'COMPLETED' ? 'done' : 'pending')}`}></div>
+                                    <div className={`driver-step-line ${tripDetails?.status === 'In Transit' ? 'active-to-pending' : (tripDetails?.status === 'Complete' ? 'done' : 'pending')}`}></div>
 
                                     <div className="driver-step">
-                                        <div className={`driver-step-circle ${tripDetails?.status === 'COMPLETED' ? 'done' : (tripDetails?.status === 'ACTIVE' ? 'active' : 'pending')}`}>
-                                            {tripDetails?.status === 'COMPLETED' ? (
+                                        <div className={`driver-step-circle ${tripDetails?.status === 'Complete' ? 'done' : (tripDetails?.status === 'In Transit' ? 'active' : 'pending')}`}>
+                                            {tripDetails?.status === 'Complete' ? (
                                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                                             ) : null}
                                         </div>
-                                        <span className={`driver-step-text ${tripDetails?.status === 'COMPLETED' ? 'done' : (tripDetails?.status === 'ACTIVE' ? 'active' : 'pending')}`}>{step3Label}</span>
+                                        <span className={`driver-step-text ${tripDetails?.status === 'Complete' ? 'done' : (tripDetails?.status === 'In Transit' ? 'active' : 'pending')}`}>{step3Label}</span>
                                     </div>
                                 </div>
                             </div>
