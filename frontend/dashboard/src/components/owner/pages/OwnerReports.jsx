@@ -6,7 +6,7 @@ export default function OwnerReports({ trips, liveData }) {
   const oneWeekAgo = new Date(now - 7 * 24 * 3600 * 1000);
   const oneMonthAgo = new Date(now - 30 * 24 * 3600 * 1000);
 
-  const completedTrips = trips.filter(t => t.status === 'COMPLETED');
+  const completedTrips = trips.filter(t => t.active === false || t.status === 'COMPLETED' || t.status === 'Complete');
   const weekTrips = completedTrips.filter(t => new Date(t.timestamp) >= oneWeekAgo);
   const monthTrips = completedTrips.filter(t => new Date(t.timestamp) >= oneMonthAgo);
 
@@ -25,8 +25,8 @@ export default function OwnerReports({ trips, liveData }) {
     ? Math.round(enriched.reduce((s, t) => s + t.quality, 0) / enriched.length)
     : '--';
 
-  const outbound = trips.filter(t => t.trip_direction === 'OUTBOUND').length;
-  const inbound = trips.filter(t => t.trip_direction === 'INBOUND').length;
+  const outbound = trips.filter(t => t.trip_type === 'OUTGOING' || t.trip_direction === 'OUTBOUND').length;
+  const inbound = trips.filter(t => t.trip_type === 'INCOMING' || t.trip_direction === 'INBOUND').length;
 
   // Unique trucks
   const uniqueTrucks = [...new Set(trips.map(t => t.truck_id))];
@@ -35,7 +35,7 @@ export default function OwnerReports({ trips, liveData }) {
   const handleExportCSV = () => {
     const headers = ['Trip ID', 'Truck ID', 'Direction', 'Start Weight (kg)', 'End Weight (kg)', 'Status', 'Quality Score', 'Started At'];
     const rows = enriched.map(t => [
-      t.trip_id, t.truck_id, t.trip_direction || 'N/A',
+      t.trip_id, t.truck_id, t.trip_type || t.trip_direction || 'N/A',
       t.startWeight ?? t.weight1 ?? '', t.endWeight ?? t.weight2 ?? '',
       t.status, t.quality + '%',
       t.timestamp ? new Date(t.timestamp).toLocaleString() : ''
@@ -51,7 +51,7 @@ export default function OwnerReports({ trips, liveData }) {
     { label: 'Total Trips', value: trips.length, icon: '📋', color: '#3b82f6', bg: '#eff6ff' },
     { label: 'Completed', value: completedTrips.length, icon: '✅', color: '#10b981', bg: '#f0fdf4' },
     { label: 'This Week', value: weekTrips.length, icon: '📅', color: '#8b5cf6', bg: '#f5f3ff' },
-    { label: 'This Month', value: monthTrips.length, icon: '🗓', color: '#f59e0b', bg: '#fffbeb' },
+    { label: 'This Month', value: monthTrips.length, icon: '📆', color: '#f59e0b', bg: '#fffbeb' },
     { label: 'Avg Quality', value: `${avgQuality}%`, icon: '⭐', color: '#ec4899', bg: '#fdf2f8' },
     { label: 'Registered Trucks', value: uniqueTrucks.length, icon: '🚛', color: '#06b6d4', bg: '#ecfeff' },
   ];
@@ -180,7 +180,7 @@ export default function OwnerReports({ trips, liveData }) {
                 <tr key={i}>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{t.trip_id.slice(0, 14)}…</td>
                   <td style={{ fontWeight: 700 }}>{t.truck_id}</td>
-                  <td><span className={`o-badge ${t.trip_direction === 'OUTBOUND' ? 'o-badge--info' : 'o-badge--neutral'}`}>{t.trip_direction || 'N/A'}</span></td>
+                  <td><span className={`o-badge ${(t.trip_type === 'OUTGOING' || t.trip_direction === 'OUTBOUND') ? 'o-badge--info' : 'o-badge--neutral'}`}>{t.trip_type || t.trip_direction || 'N/A'}</span></td>
                   <td>
                     {(() => {
                       const w1 = t.startWeight ?? t.weight1;

@@ -58,7 +58,24 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   const w2 = latestTrip?.endWeight ?? latestTrip?.weight2;
   const weightLoss = (w1 != null && w2 != null && w1 > 0) ? (((w1 - w2) / w1) * 100).toFixed(1) : null;
 
-  const isActive = latestTrip?.status === 'ACTIVE';
+  const isActive = latestTrip?.active === true || latestTrip?.status === 'ACTIVE';
+
+  const handleExportCSV = () => {
+    const headers = ['Trip ID', 'Direction', 'Start Weight (kg)', 'End Weight (kg)', 'Status', 'Started At'];
+    const rows = truckTrips.map(t => [
+      t.trip_id,
+      t.trip_type || t.trip_direction || 'N/A',
+      t.startWeight ?? t.weight1 ?? '',
+      t.endWeight ?? t.weight2 ?? '',
+      t.status,
+      t.timestamp ? new Date(t.timestamp).toLocaleString() : ''
+    ]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `truck_${truckId}_history.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     if (sensorData && latestTrip) {
@@ -170,7 +187,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
         </div>
         <div className="owner-page-header__actions">
           <button className="owner-btn owner-btn--outline">🖨 Print</button>
-          <button className="owner-btn owner-btn--primary">⬇ Export Report</button>
+          <button className="owner-btn owner-btn--primary" onClick={handleExportCSV}>⬇ Export Report</button>
         </div>
       </div>
 
@@ -190,7 +207,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
         </div>
         <div className="owner-meta-item">
           <div className="owner-meta-item__label">📍 Direction</div>
-          <div className="owner-meta-item__value">{latestTrip.trip_direction || 'Unknown'}</div>
+          <div className="owner-meta-item__value">{latestTrip.trip_type || latestTrip.trip_direction || 'Unknown'}</div>
           <div className="owner-meta-item__sub">{isActive ? 'Trip in progress' : 'Completed'}</div>
         </div>
         <div className="owner-meta-item">

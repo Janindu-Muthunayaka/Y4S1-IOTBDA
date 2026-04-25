@@ -286,7 +286,7 @@ function OwnerDashboardContent() {
         updateSnapshot({
           type: 'FLEET_STRATEGY_OVERVIEW',
           totalTrips: trips.length,
-          activeTrips: trips.filter(t => t.status === 'ACTIVE').length,
+          activeTrips: trips.filter(t => t.active || t.status === 'ACTIVE').length,
           fleetAvgQuality: (totalQuality / trips.length).toFixed(1),
           fleetAvgTemp: tempCount > 0 ? (totalTemp / tempCount).toFixed(1) : '--',
           alertsCount: alerts.length,

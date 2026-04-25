@@ -141,7 +141,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     return { ...trip, currentTemp, shockEvents, maxShock, quality, status };
   });
 
-  const activeFull = enriched.filter(t => baseFilteredTrips.find(x => x.trip_id === t.trip_id)?.status === 'ACTIVE');
+  const activeFull = enriched.filter(t => { const found = baseFilteredTrips.find(x => x.trip_id === t.trip_id); return found?.active || found?.status === 'ACTIVE'; });
   const critCount = enriched.filter(t => t.status === 'crit').length;
   const warnCount = enriched.filter(t => t.status === 'warn').length;
   const allTemps = activeFull.filter(t => t.currentTemp !== null).map(t => t.currentTemp);
@@ -216,7 +216,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     {
       label: 'Active Trucks', value: activeFull.length,
       icon: '🚛', iconBg: '#eff6ff', color: '#3b82f6',
-      sub: `${baseFilteredTrips.filter(t => t.status === 'COMPLETED').length} completed today`, subColor: '#059669'
+      sub: `${baseFilteredTrips.filter(t => t.active === false || t.status === 'COMPLETED' || t.status === 'Complete').length} completed today`, subColor: '#059669'
     },
     {
       label: 'Critical Alerts', value: critCount,
@@ -355,8 +355,8 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
                     <td style={{ fontWeight: 800, fontSize: '0.82rem' }}>{trip.truck_id}</td>
                     <td style={{ color: '#9ca3af', fontFamily: 'monospace', fontSize: '0.75rem' }}>{trip.trip_id.slice(0, 14)}…</td>
                     <td>
-                      <span className={`o-badge ${trip.trip_direction === 'OUTBOUND' ? 'o-badge--info' : 'o-badge--neutral'}`}>
-                        {trip.trip_direction || 'INB'}
+                      <span className={`o-badge ${(trip.trip_type === 'OUTGOING' || trip.trip_direction === 'OUTBOUND') ? 'o-badge--info' : 'o-badge--neutral'}`}>
+                        {trip.trip_type || trip.trip_direction || 'INB'}
                       </span>
                     </td>
                     <td style={{ fontWeight: isTempCrit ? 700 : 400, color: isTempCrit ? '#dc2626' : '#111827' }}>
