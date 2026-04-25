@@ -38,7 +38,7 @@ export default function OwnerTrucks({ trips, liveData }) {
         </div>
         <div className="owner-page-header__actions">
           <div className="owner-stats-pill">
-            Active: <strong>{enriched.filter(t => t.status !== 'crit').filter(t => t.trip?.status === 'ACTIVE' || trips.find(x => x.trip_id === t.trip_id)?.status === 'ACTIVE').length}</strong>
+            Active: <strong>{enriched.filter(t => trips.some(x => x.truck_id === t.truck_id && x.status === 'ACTIVE')).length}</strong>
           </div>
           <div className="owner-stats-pill">
             Critical: <strong style={{ color: '#ef4444' }}>{enriched.filter(t => t.status === 'crit').length}</strong>
