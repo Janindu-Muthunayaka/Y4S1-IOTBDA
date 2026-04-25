@@ -82,7 +82,7 @@ export default function QA_Graphs() {
         };
     }, [id]);
 
-    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--';
 
     const trip = tripDetails || {};
     const temps = sensorData?.temperature_data || [];
@@ -99,8 +99,8 @@ export default function QA_Graphs() {
     const impactEvents = motions.filter(m => m.max_accel > 0.3);
 
     // ── Time labels ──
-    const timeLabels = temps.map(t => t.time || '');
-    const motionLabels = motions.map(m => m.time || '');
+    const timeLabels = temps.map(t => t.time ? fmtTime(t.time) : '');
+    const motionLabels = motions.map(m => m.time ? fmtTime(m.time) : '');
 
     // ── Chart 1: Thermal Stability (Floating Bar + Trend Line) ──
     const tempChartData = {
@@ -191,7 +191,7 @@ export default function QA_Graphs() {
         datasets: [
             {
                 label: 'Vibration',
-                data: motions.map(m => m.max_accel || 0),
+                data: motions.map(m => Math.min(m.max_accel || 0, 0.5)),
                 borderColor: '#111',
                 borderWidth: 1.5,
                 borderDash: [4, 4],
@@ -201,7 +201,7 @@ export default function QA_Graphs() {
             },
             {
                 label: 'Peak events',
-                data: motions.map(m => (m.max_accel > 0.5) ? m.max_accel : null),
+                data: motions.map(m => (m.max_accel > 0.5) ? 0.5 : null),
                 borderColor: 'transparent',
                 backgroundColor: '#f59e0b',
                 pointRadius: 6,
@@ -221,7 +221,7 @@ export default function QA_Graphs() {
         },
         scales: {
             x: { ticks: { font: { size: 10 }, autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
-            y: { min: 0, max: vChartMax, ticks: { font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } }
+            y: { min: 0, max: 0.5, ticks: { font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } }
         }
     };
 
@@ -286,7 +286,7 @@ export default function QA_Graphs() {
                 {/* Topbar Info Row */}
                 <div style={{ background: '#fff', padding: '12px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '32px', fontSize: '13px' }}>
                     <div>Truck: <strong>{trip.truck_id || '--'}</strong></div>
-                    <div>Direction: <strong>{trip.trip_direction || '--'}</strong></div>
+                    <div>Direction: <strong>{trip.trip_type || trip.trip_direction || '--'}</strong></div>
                     <div>Last Sync: <span style={{ color: '#64748b' }}>{lastSynced || 'just now'}</span></div>
                     <div style={{ marginLeft: 'auto', color: '#6366f1', fontWeight: 600 }}>Quality: {trip.quality_score || 95}%</div>
                 </div>
@@ -312,17 +312,6 @@ export default function QA_Graphs() {
                             </div>
                         </div>
 
-                        {/* Vibration Frequency */}
-                        <div className="qt-card" style={{ padding: '20px 24px', borderRadius: 0, borderLeft: 'none', borderRight: 'none' }}>
-                            <div style={{ marginBottom: '16px' }}>
-                                <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Vibration Frequency Spectrum (m/s²)</h3>
-                                <p style={{ fontSize: '12px', color: '#64748b' }}>Real-time accelerometer logs</p>
-                            </div>
-                            <div style={{ height: '140px', position: 'relative' }}>
-                                <Line data={vibChartData} options={vibChartOptions} plugins={[refLinesPlugin]} />
-                            </div>
-                        </div>
-
                         {/* G-Force Impacts */}
                         <div className="qt-card" style={{ padding: '20px 24px', borderRadius: 0, borderLeft: 'none', borderRight: 'none' }}>
                             <div style={{ marginBottom: '16px' }}>
@@ -331,6 +320,17 @@ export default function QA_Graphs() {
                             </div>
                             <div style={{ height: '140px', position: 'relative' }}>
                                 <Bar data={gforceChartData} options={gforceChartOptions} plugins={[refLinesPlugin]} />
+                            </div>
+                        </div>
+
+                        {/* Vibration Frequency */}
+                        <div className="qt-card" style={{ padding: '20px 24px', borderRadius: 0, borderLeft: 'none', borderRight: 'none' }}>
+                            <div style={{ marginBottom: '16px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Vibration Frequency Spectrum (m/s²)</h3>
+                                <p style={{ fontSize: '12px', color: '#64748b' }}>Real-time accelerometer logs</p>
+                            </div>
+                            <div style={{ height: '140px', position: 'relative' }}>
+                                <Line data={vibChartData} options={vibChartOptions} plugins={[refLinesPlugin]} />
                             </div>
                         </div>
 

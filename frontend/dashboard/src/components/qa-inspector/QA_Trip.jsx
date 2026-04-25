@@ -31,10 +31,19 @@ export default function QA_Trip() {
     const isLowRisk = qualityScore > 80;
 
     // Weight data
-    const startWeight = trip.start_weight || trip.weight1 || null;
-    const endWeight = trip.end_weight || trip.weight2 || null;
+    const startWeight = trip.startWeight || trip.start_weight || trip.weight1 || null;
+    const endWeight = trip.endWeight || trip.end_weight || trip.weight2 || null;
     const weightLoss = (startWeight && endWeight) ? startWeight - endWeight : null;
     const weightLossPct = (startWeight && weightLoss !== null) ? ((weightLoss / startWeight) * 100).toFixed(1) : null;
+    
+    let weightColorClass = 'qt-weight-green';
+    let weightIcon = '✅';
+    if (weightLossPct !== null) {
+        const pct = parseFloat(weightLossPct);
+        if (pct >= 5) { weightColorClass = 'qt-weight-red'; weightIcon = '❌'; }
+        else if (pct >= 3) { weightColorClass = 'qt-weight-orange'; weightIcon = '⚠️'; }
+        else if (pct > 0) { weightColorClass = 'qt-weight-yellow'; weightIcon = '⚠️'; }
+    }
 
     // Bar chart helpers
     const maxTempVal = temps.length > 0 ? Math.max(...temps.map(t => Math.abs(t.avg || 0))) : 1;
@@ -86,7 +95,7 @@ export default function QA_Trip() {
     }, [id]);
 
     // Helpers
-    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--';
 
     // Build alerts
     const buildAlerts = () => {
@@ -161,10 +170,14 @@ export default function QA_Trip() {
                             <span className="qt-header-label">Trip ID:</span>
                             <span className="qt-header-value qt-link">{trip.trip_id || id}</span>
                         </div>
-                        <div className="qt-header-sep"></div>
                         <div className="qt-header-field">
                             <span className="qt-header-label">Direction:</span>
-                            <span className="qt-header-value">{trip.trip_direction || '--'}</span>
+                            <span className="qt-header-value">{trip.trip_type || trip.trip_direction || '--'}</span>
+                        </div>
+                        <div className="qt-header-sep"></div>
+                        <div className="qt-header-field">
+                            <span className="qt-header-label">Trip Start:</span>
+                            <span className="qt-header-value">{fmtTime(trip.timestamp)}</span>
                         </div>
                         <div className="qt-header-sep"></div>
                         <div className="qt-header-field">
@@ -172,7 +185,7 @@ export default function QA_Trip() {
                             <span className="qt-header-value">{
                                 (trip.status || '').toUpperCase() === 'ACTIVE' || !trip.status 
                                 ? 'In Transit' 
-                                : (trip.end_time || trip.updatedAt || trip.updated_at ? fmtTime(trip.end_time || trip.updatedAt || trip.updated_at) : '--:--')
+                                : (trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at ? fmtTime(trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at) : '--:--')
                             }</span>
                         </div>
                     </div>
@@ -287,9 +300,9 @@ export default function QA_Trip() {
                                     </div>
                                 </div>
                                 {startWeight && endWeight && (
-                                    <div className="qt-plain-summary">
-                                        <span className="qt-ps-icon">{(weightLossPct && parseFloat(weightLossPct) <= 2) ? '✅' : '⚠️'}</span>
-                                        <span>Cargo lost <strong>{weightLoss} kg ({weightLossPct}%)</strong> in transit — {(weightLossPct && parseFloat(weightLossPct) <= 2) ? 'within acceptable threshold' : 'exceeds acceptable threshold'}.</span>
+                                    <div className="qt-plain-summary" style={{ borderLeft: `4px solid ${weightColorClass === 'qt-weight-red' ? '#ef4444' : weightColorClass === 'qt-weight-orange' ? '#f97316' : weightColorClass === 'qt-weight-yellow' ? '#eab308' : '#22c55e'}` }}>
+                                        <span className="qt-ps-icon">{weightIcon}</span>
+                                        <span>Cargo lost <strong style={{ color: weightColorClass === 'qt-weight-red' ? '#ef4444' : weightColorClass === 'qt-weight-orange' ? '#f97316' : weightColorClass === 'qt-weight-yellow' ? '#eab308' : 'inherit' }}>{weightLoss} kg ({weightLossPct}%)</strong> in transit — {(weightLossPct && parseFloat(weightLossPct) <= 2) ? 'within acceptable threshold' : 'exceeds acceptable threshold'}.</span>
                                     </div>
                                 )}
                             </div>
@@ -366,16 +379,19 @@ export default function QA_Trip() {
                     <span className="qt-alerts-count">{alerts.length}</span>
                 </div>
                 <div className="qt-alerts-list">
-                    {alerts.map((alert, i) => (
-                        <div className={`qt-alert-item qt-asev-${alert.sev}`} key={i}>
-                            <div className={`qt-alert-dot qt-adot-${alert.sev}`}></div>
-                            <div className="qt-alert-body">
-                                <span className={`qt-alert-sev-label qt-asl-${alert.sev}`}>{alert.label}</span>
-                                <div className="qt-alert-msg">{alert.msg}</div>
-                                <div className="qt-alert-meta"><span>{alert.time}</span><span>·</span><span>{alert.truck}</span></div>
+                    {alerts.map((alert, i) => {
+                        const alertBorder = alert.sev === 'crit' ? '#fca5a5' : alert.sev === 'warn' ? '#fdba74' : alert.sev === 'minor' ? '#fde047' : '#e2e8f0';
+                        return (
+                            <div className={`qt-alert-item qt-asev-${alert.sev}`} key={i} style={{ border: `1px solid ${alertBorder}`, borderRadius: '8px', marginBottom: '8px' }}>
+                                <div className={`qt-alert-dot qt-adot-${alert.sev}`}></div>
+                                <div className="qt-alert-body">
+                                    <span className={`qt-alert-sev-label qt-asl-${alert.sev}`}>{alert.label}</span>
+                                    <div className="qt-alert-msg">{alert.msg}</div>
+                                    <div className="qt-alert-meta"><span>{alert.time}</span><span>·</span><span>{alert.truck}</span></div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </aside>
         </div>

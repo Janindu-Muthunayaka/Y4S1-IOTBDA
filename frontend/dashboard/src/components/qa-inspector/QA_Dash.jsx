@@ -170,6 +170,7 @@ export default function QA_Dash() {
                 <td className="qa-trip-id-cell">
                     <div style={{ fontWeight: 700, color: '#4F46E5', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>{trip.trip_id}</div>
                 </td>
+                <td className="qa-time-cell">{fmtDate(trip.timestamp)}</td>
                 <td className="qa-time-cell">{departureTime}</td>
                 <td className="qa-time-cell">{pickupTime}</td>
                 <td className="qa-time-cell">
@@ -248,18 +249,6 @@ export default function QA_Dash() {
                         </div>
                     </div>
                     <div className="qa-header-right">
-                        <div className="qa-sync-pill">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
-                            </svg>
-                            All systems nominal
-                        </div>
-                        <button className="qa-action-btn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
-                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                            Search Data
-                        </button>
                     </div>
                 </header>
 
@@ -291,6 +280,7 @@ export default function QA_Dash() {
                                 <thead>
                                     <tr>
                                         <th>Trip ID</th>
+                                        <th>Date</th>
                                         <th>Departure</th>
                                         <th>Pickup</th>
                                         <th>Arrival</th>
@@ -302,7 +292,7 @@ export default function QA_Dash() {
                                 <tbody>
                                     {inboundTrips.length === 0 ? (
                                         <tr className="qa-empty-row">
-                                            <td colSpan="7">No inbound trips recorded.</td>
+                                            <td colSpan="8">No inbound trips recorded.</td>
                                         </tr>
                                     ) : (
                                         inboundTrips.map(renderTripRow)
@@ -335,6 +325,7 @@ export default function QA_Dash() {
                                 <thead>
                                     <tr>
                                         <th>Trip ID</th>
+                                        <th>Date</th>
                                         <th>Departure</th>
                                         <th>Pickup</th>
                                         <th>Arrival</th>
@@ -346,7 +337,7 @@ export default function QA_Dash() {
                                 <tbody>
                                     {outboundTrips.length === 0 ? (
                                         <tr className="qa-empty-row">
-                                            <td colSpan="7">No outbound trips recorded.</td>
+                                            <td colSpan="8">No outbound trips recorded.</td>
                                         </tr>
                                     ) : (
                                         outboundTrips.map(renderTripRow)

@@ -172,7 +172,7 @@ export default function QA_Timeline() {
 
     const departureTimeStr = fmtTime(trip.timestamp);
     const tripStatus = (trip.status || '').toUpperCase();
-    const arrivalRaw = trip.end_time || trip.updatedAt || trip.updated_at || sensorData?.last_updated;
+    const arrivalRaw = trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at || sensorData?.last_updated;
     const arrivalTimeStr = (tripStatus === 'ACTIVE' || !tripStatus) 
         ? 'In Transit' 
         : (arrivalRaw ? fmtTime(arrivalRaw) : '--:--');
