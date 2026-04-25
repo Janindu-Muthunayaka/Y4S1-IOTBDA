@@ -29,6 +29,13 @@ export function timeAgo(d) {
 }
 export function computeQuality(sensors) {
   if (!sensors) return 100;
+  
+  // Use ML predicted score if available from the backend payload
+  if (sensors.ml_quality !== undefined) {
+    return Math.max(0, Math.min(100, Math.round(sensors.ml_quality)));
+  }
+
+  // Fallback heuristic logic
   const temps = sensors.temperature_data || [];
   const motions = sensors.motion_data || [];
   let score = 100;
