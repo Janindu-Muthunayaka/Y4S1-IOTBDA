@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useChatbot } from '../Retail_Chatbot/Retail_ChatbotContext';
 
 const MOCK_DATA = {
   'TRP-2048': {
@@ -346,7 +347,23 @@ export default function RetailerHome() {
     return () => clearInterval(id)
   }, [])
 
+  const { updateSnapshot } = useChatbot();
+
   const data = MOCK_DATA[orderTrip]
+
+  useEffect(() => {
+    updateSnapshot({
+      trip: { trip_id: orderTrip, truck_id: 'N/A', status: 'DELIVERED' },
+      sensorData: null,
+      kpis: {
+        qualityScore: data.qualityScore,
+        tempCompliance: data.qualityScore,
+        shocks: [],
+        cold: [],
+        hot: data.qualityLabel === 'Critical' ? [{ time: 'N/A', avg: '5.0' }] : [],
+      }
+    });
+  }, [orderTrip, data]);
 
   // ── CHANGED: compute filtered deliveries and their merged alerts ──
   const filteredDeliveries = deliveryFilter === 'All Deliveries'
