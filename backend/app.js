@@ -23,6 +23,7 @@ fetcher.on('gateData', async (data) => {
 // 2. Listen for Truck Sensor Data (Temperature & Motion from road)
 fetcher.on('truckData', async (data) => {
     try {
+        console.log(`\n🚚 [TRUCK EVENT] Received data for truck: ${data.truck_id}`);
         await db.updateSensorData(
             data.truck_id,
             { avg: data.temperature, min: data.temperature, max: data.temperature },

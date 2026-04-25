@@ -69,9 +69,9 @@ export default function QA_Dash() {
     const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 
-    // Split trips by direction
-    const inboundTrips = trips.filter(t => t.trip_direction === 'INBOUND');
-    const outboundTrips = trips.filter(t => t.trip_direction === 'OUTBOUND');
+    // Split trips by direction (support both trip_type and trip_direction)
+    const inboundTrips = trips.filter(t => t.trip_type === 'INCOMING' || t.trip_direction === 'INBOUND');
+    const outboundTrips = trips.filter(t => t.trip_type === 'OUTGOING' || t.trip_direction === 'OUTBOUND');
 
     // Derive alerts from sensor data
     const buildAlerts = () => {
@@ -149,13 +149,19 @@ export default function QA_Dash() {
     // Render a trip table row
     const renderTripRow = (trip) => {
         const departureTime = fmtTime(trip.timestamp);
-        const status = trip.status?.toUpperCase() || 'UNKNOWN';
+        const status = trip.status || 'Unknown';
 
-        // Arrival time: use last sensor update (last_updated from sensordata) as the most accurate
-        // proxy for when the trip ended. Fall back to trip-level fields if unavailable.
+        // Pickup/Action Time: Find the most significant mid-trip event
+        const pickupEvent = trip.stateChange?.find(s => 
+            s.status === 'Reached pickup location and loading' || 
+            s.status === 'Delivered and returning'
+        );
+        const pickupTime = pickupEvent ? fmtTime(pickupEvent.timestamp) : '--:--';
+
+        // Arrival time: use endTime if complete, otherwise check if active
         const sd = sensorMap[trip.trip_id];
-        const arrivalRaw = sd?.last_updated || trip.end_time || trip.updatedAt || trip.updated_at;
-        const arrivalTime = status === 'ACTIVE'
+        const arrivalRaw = trip.endTime || sd?.last_updated || trip.end_time || trip.updatedAt;
+        const arrivalTime = trip.active
             ? 'In Transit'
             : (arrivalRaw ? fmtTime(arrivalRaw) : '--:--');
 
@@ -165,8 +171,14 @@ export default function QA_Dash() {
                     <div style={{ fontWeight: 700, color: '#4F46E5', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>{trip.trip_id}</div>
                 </td>
                 <td className="qa-time-cell">{departureTime}</td>
+                <td className="qa-time-cell">{pickupTime}</td>
                 <td className="qa-time-cell">
                     <span className="qa-time-flow">{arrivalTime}</span>
+                </td>
+                <td>
+                    <span className={`qa-status-pill ${status.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {status}
+                    </span>
                 </td>
                 <td>
                     <div className="qa-truck-pill">
@@ -280,7 +292,9 @@ export default function QA_Dash() {
                                     <tr>
                                         <th>Trip ID</th>
                                         <th>Departure</th>
+                                        <th>Pickup</th>
                                         <th>Arrival</th>
+                                        <th>Status</th>
                                         <th>Truck ID</th>
                                         <th>Trip View</th>
                                     </tr>
@@ -288,7 +302,7 @@ export default function QA_Dash() {
                                 <tbody>
                                     {inboundTrips.length === 0 ? (
                                         <tr className="qa-empty-row">
-                                            <td colSpan="5">No inbound trips recorded.</td>
+                                            <td colSpan="7">No inbound trips recorded.</td>
                                         </tr>
                                     ) : (
                                         inboundTrips.map(renderTripRow)
@@ -322,7 +336,9 @@ export default function QA_Dash() {
                                     <tr>
                                         <th>Trip ID</th>
                                         <th>Departure</th>
+                                        <th>Pickup</th>
                                         <th>Arrival</th>
+                                        <th>Status</th>
                                         <th>Truck ID</th>
                                         <th>Trip View</th>
                                     </tr>
@@ -330,7 +346,7 @@ export default function QA_Dash() {
                                 <tbody>
                                     {outboundTrips.length === 0 ? (
                                         <tr className="qa-empty-row">
-                                            <td colSpan="5">No outbound trips recorded.</td>
+                                            <td colSpan="7">No outbound trips recorded.</td>
                                         </tr>
                                     ) : (
                                         outboundTrips.map(renderTripRow)

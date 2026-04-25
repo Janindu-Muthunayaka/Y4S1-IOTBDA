@@ -414,6 +414,23 @@
   white-space: nowrap;
 }
 
+/* Status Pills */
+.qa-status-pill {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.qa-status-pill.out-for-delivery { background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; }
+.qa-status-pill.out-to-pickup { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.qa-status-pill.delivered-and-returning { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
+.qa-status-pill.reached-pickup-location-and-loading { background: #FDF2F8; color: #9D174D; border: 1px solid #FBCFE8; }
+.qa-status-pill.complete { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
+.qa-status-pill.unknown { background: #F5F5FA; color: #9CA3AF; border: 1px solid #E5E7EB; }
+
 /* View Button */
 .qa-view-btn {
   display: inline-flex;
