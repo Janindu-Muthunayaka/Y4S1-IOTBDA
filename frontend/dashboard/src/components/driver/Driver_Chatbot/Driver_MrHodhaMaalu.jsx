@@ -23,7 +23,7 @@ export default function MrHodhaMaalu() {
                 const { data } = await axios.get(`${API_BASE}/api/chatbot/driver/persona`);
                 const content = data.content;
                 setPersona(content);
-                
+
                 // Extract API Key robustly (Look for AIzaSy pattern)
                 const keyMatch = content.match(/AIzaSy[A-Za-z0-9_-]+/);
                 if (keyMatch) {
@@ -49,36 +49,63 @@ export default function MrHodhaMaalu() {
     const createPretext = useCallback(async (data) => {
         if (!data) return "No dashboard data available.";
 
-        const { trip, sensorData, kpis } = data;
-        
+        const { trip, sensorData, kpis, currentPage } = data;
+
+        // Common metrics
+        const temps = sensorData?.temperature_data || [];
+        const motions = sensorData?.motion_data || [];
+        const currentTemp = temps.length > 0 ? `${parseFloat(temps[temps.length - 1].avg).toFixed(1)}°C` : 'N/A';
+        const shockLevel = motions.length > 0
+            ? (Math.max(...motions.map(m => m.max_accel)) > 0.5 ? 'ALERT' : 'NORMAL')
+            : 'N/A';
+
+        const w1 = trip?.startWeight != null ? `${Number(trip.startWeight).toFixed(3)} kg` : 'N/A';
+        const w2 = trip?.endWeight != null ? `${Number(trip.endWeight).toFixed(3)} kg` : 'N/A';
+        const weightMatch = trip?.startWeight != null && trip?.endWeight != null
+            ? (Math.abs(trip.startWeight - trip.endWeight) < 0.5 ? 'Secure' : 'Mismatch')
+            : 'N/A';
+
         let pretext = `DASHBOARD SNAPSHOT CONTENT:\n`;
-        pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
-        pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
-        pretext += `Status: ${trip?.status || 'N/A'}\n`;
-        pretext += `Quality Score: ${kpis?.qualityScore}/100\n`;
-        pretext += `Temperature Compliance: ${kpis?.tempCompliance}%\n\n`;
-        
-        pretext += `SUMMARY OF ANOMALIES:\n`;
-        pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
-        pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
-        pretext += `- Hot Violations: ${kpis?.hot?.length || 0}\n\n`;
+        pretext += `Currently Viewing: ${currentPage || 'Main Dashboard'}\n`;
+        pretext += `Trip: ${trip?.trip_id || 'N/A'} (${trip?.status || 'N/A'})\n\n`;
 
-        pretext += `DETAILED VIOLATION TIMES (Threshold Crosses):\n`;
-        if (kpis?.cold?.length > 0) {
-            pretext += `Low TEMP excursions (<-22°C):\n`;
-            kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+        if (currentPage === 'Temperature Page') {
+            pretext += `--- TEMPERATURE ANALYTICS ---\n`;
+            pretext += `Current: ${currentTemp}\n`;
+            pretext += `Compliance: ${kpis?.tempCompliance}%\n`;
+            pretext += `Anomalies: ${kpis?.hot?.length + kpis?.cold?.length || 0}\n`;
+            if (kpis?.hot?.length > 0) {
+                pretext += `Hot Excursions (>-18°C):\n`;
+                kpis.hot.slice(-10).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+            }
+            if (kpis?.cold?.length > 0) {
+                pretext += `Cold Excursions (<-22°C):\n`;
+                kpis.cold.slice(-10).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
+            }
+        } 
+        else if (currentPage === 'Shocks Page') {
+            pretext += `--- SHOCK ANALYTICS ---\n`;
+            pretext += `Current Status: ${shockLevel}\n`;
+            pretext += `Total Events: ${kpis?.shocks?.length || 0}\n`;
+            if (kpis?.shocks?.length > 0) {
+                pretext += `Recent Impacts (>0.5G):\n`;
+                kpis.shocks.slice(-10).forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
+            }
         }
-        if (kpis?.hot?.length > 0) {
-            pretext += `High TEMP excursions (>-18°C):\n`;
-            kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.shocks?.length > 0) {
-            pretext += `SHOCK events (>0.5G):\n`;
-            kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
-        }
-
-        if (!kpis?.cold?.length && !kpis?.hot?.length && !kpis?.shocks?.length) {
-            pretext += `No threshold violations recorded. Clean run.\n`;
+        else {
+            // Main Dashboard or Notifications
+            const isOutbound = trip?.trip_type === 'OUTGOING';
+            pretext += `--- TRIP OVERVIEW ---\n`;
+            pretext += `Route: ${isOutbound ? 'Warehouse → Retailer' : 'Supplier → Warehouse'}\n`;
+            pretext += `Cargo: ${weightMatch} (Exp: ${w1}, Cur: ${w2})\n`;
+            pretext += `Temp: ${currentTemp} (${kpis?.tempCompliance}% Compliance)\n`;
+            pretext += `Shocks: ${shockLevel} (${kpis?.shocks?.length || 0} events)\n`;
+            
+            if (kpis?.shocks?.length > 0 || kpis?.hot?.length > 0 || kpis?.cold?.length > 0) {
+                pretext += `\nSTATUS: Active alerts detected in system.\n`;
+            } else {
+                pretext += `\nSTATUS: All systems nominal.\n`;
+            }
         }
 
         // Save to Driver_Pretext.txt via backend
@@ -90,6 +117,7 @@ export default function MrHodhaMaalu() {
 
         return pretext;
     }, []);
+
 
     const toggleChat = async () => {
         if (!isOpen) {
@@ -122,9 +150,9 @@ export default function MrHodhaMaalu() {
         try {
             // Build the prompt for Gemini
             const { data: pretextData } = await axios.get(`${API_BASE}/api/chatbot/driver/pretext`);
-            
+
             const systemPrompt = `${persona}\n\nCURRENT DASHBOARD SNAPSHOT:\n${pretextData.content}\n\nINSTRUCTION: If the user is just saying "Hi" or small talk, respond only with a cool greeting. Only analyze the SNAPSHOT above if the user asks about the trip, quality, or "how things are looking". No markdown (no **).`;
-            
+
             // Format history for Gemini API (Content-based)
             const chatHistory = messages
                 .filter(m => m.content !== "Hi. I'm Mr. Hodha-Maalu, your Trip Assistant. How's the drive going?")
@@ -184,15 +212,15 @@ export default function MrHodhaMaalu() {
                     </div>
 
                     <div className="chat-input-area">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Ask about your trip..."
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                         />
-                        <button 
-                            className="send-btn" 
+                        <button
+                            className="send-btn"
                             onClick={handleSendMessage}
                             disabled={!inputValue.trim() || isLoading}
                         >

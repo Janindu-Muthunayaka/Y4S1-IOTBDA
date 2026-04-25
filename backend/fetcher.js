@@ -28,7 +28,7 @@ class DataFetcher extends EventEmitter {
         this.client.on('message', (topic, message) => {
             try {
                 const data = JSON.parse(message.toString());
-                // console.log(`[${topic}] received:`, data);
+                console.log(`[${topic}] received:`, data);
 
                 if (topic === 'IOTBDAGateOne') {
                     this.gateData = data;

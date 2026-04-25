@@ -32,6 +32,7 @@
   margin-bottom: 6px;
   letter-spacing: 0.3px;
   flex-shrink: 0;
+  height: 20px;
 }
 
 .driver-screen {
@@ -154,7 +155,6 @@
   background: #f2f2f7;
 }
 
-/* Hide scrollbar for main content */
 .driver-main-content::-webkit-scrollbar {
   display: none;
 }
@@ -277,7 +277,6 @@
   color: #30d158;
 }
 
-/* Progress steps */
 .driver-progress-container {
   display: flex;
   align-items: center;
@@ -301,53 +300,242 @@
   z-index: 2;
 }
 
-.driver-step-circle.done {
-  background: #30d158;
-}
-
+.driver-step-circle.done { background: #30d158; }
 .driver-step-circle.active {
   background: #1c1c1e;
   border: 3px solid #1c1c1e;
   box-shadow: 0 0 0 3px #f2f2f7, 0 0 0 5px #1c1c1e;
 }
-
-.driver-step-circle.pending {
-  background: #d1d1d6;
-}
+.driver-step-circle.pending { background: #d1d1d6; }
 
 .driver-step-text {
   font-size: 8px;
   margin-top: 4px;
   text-align: center;
 }
-
-.driver-step-text.done {
-  color: #30d158;
-}
-
-.driver-step-text.active {
-  color: #1c1c1e;
-  font-weight: 700;
-}
-
-.driver-step-text.pending {
-  color: #8e8e93;
-}
+.driver-step-text.done { color: #30d158; }
+.driver-step-text.active { color: #1c1c1e; font-weight: 700; }
+.driver-step-text.pending { color: #8e8e93; }
 
 .driver-step-line {
   flex: 1;
   height: 2px;
   margin-top: -12px;
 }
+.driver-step-line.done { background: #30d158; }
+.driver-step-line.pending { background: #d1d1d6; }
+.driver-step-line.active-to-pending { background: #d1d1d6; }
 
-.driver-step-line.done {
+/* ═══════════════════════════════════════════
+   Temperature Page Specific Styles (dt = driver-temp)
+   ═══════════════════════════════════════════ */
+
+.dt-sensor-select {
+  background: #2c2c2e;
+  border-radius: 20px;
+  padding: 6px 12px;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-temp-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.dt-temp-badge.safe { background: #e8faf0; border-color: #30d158; color: #30d158; }
+.dt-temp-badge.danger { background: #fef2f2; border-color: #ff3b30; color: #ff3b30; }
+
+.dt-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dt-stat-card {
+  background: #f7f7f9;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.dt-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.dt-stat-label span { font-size: 9px; color: #8e8e93; font-weight: 500; }
+.dt-stat-value { font-size: 20px; font-weight: 700; color: #1c1c1e; line-height: 1; }
+
+/* ═══════════════════════════════════════════
+   Shocks Page Specific Styles (ds = driver-shocks)
+   ═══════════════════════════════════════════ */
+
+.ds-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ds-label-upper {
+  font-size: 10px;
+  color: #aaa;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ds-status-badge {
+  margin-top: 12px;
+  border-radius: 10px;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid;
+}
+.ds-status-badge.safe { background: #f0fff4; border-color: #30d158; color: #1a7a3a; }
+.ds-status-badge.danger { background: #fff0f0; border-color: #ff3b30; color: #cc2020; }
+
+.ds-mini-card {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ds-event-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.ds-event-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Notifications Page Specific Styles (dn = driver-notif)
+   ═══════════════════════════════════════════ */
+
+.dn-icon-btn {
+  width: 28px;
+  height: 28px;
+  background: #f5f6fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dn-icon-btn:hover { background: #e8e9f0; }
+
+.dn-critical-pill {
+  background: #ff3b30;
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.dn-ok-pill {
   background: #30d158;
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
 }
 
-.driver-step-line.pending {
-  background: #d1d1d6;
+.dn-priority-pill {
+  border-radius: 20px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  height: fit-content;
+}
+.dn-priority-pill.critical { background: #ff3b30; }
+.dn-priority-pill.ok       { background: #30d158; }
+
+.dn-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
 }
 
-.driver-step-line.active-to-pending {
-  background: #d1d1d6;
+.dn-stat-box {
+  background: #f5f6fa;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.dn-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.dn-stat-label span { font-size: 10px; color: #aaa; font-weight: 600; }
+.dn-stat-value { font-size: 28px; font-weight: 900; color: #111; }
+
+.dn-alert-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  border-left: 4px solid #ddd;
+}
+
+.dn-alert-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
 }

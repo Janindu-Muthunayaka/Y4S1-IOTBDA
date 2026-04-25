@@ -45,40 +45,60 @@ export default function MrHodhaMaalu() {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
-
+    
     const createPretext = useCallback(async (data) => {
         if (!data) return "No dashboard data available.";
 
-        const { trip, sensorData, kpis } = data;
-        
         let pretext = `DASHBOARD SNAPSHOT CONTENT:\n`;
-        pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
-        pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
-        pretext += `Status: ${trip?.status || 'N/A'}\n`;
-        pretext += `Quality Score: ${kpis?.qualityScore}/100\n`;
-        pretext += `Temperature Compliance: ${kpis?.tempCompliance}%\n\n`;
-        
-        pretext += `SUMMARY OF ANOMALIES:\n`;
-        pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
-        pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
-        pretext += `- Hot Violations: ${kpis?.hot?.length || 0}\n\n`;
 
-        pretext += `DETAILED VIOLATION TIMES (Threshold Crosses):\n`;
-        if (kpis?.cold?.length > 0) {
-            pretext += `Low TEMP excursions (<-22°C):\n`;
-            kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.hot?.length > 0) {
-            pretext += `High TEMP excursions (>-18°C):\n`;
-            kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg).toFixed(1)}°C\n`);
-        }
-        if (kpis?.shocks?.length > 0) {
-            pretext += `SHOCK events (>0.5G):\n`;
-            kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel).toFixed(2)}G\n`);
-        }
+        if (data.type === 'FLEET_OVERVIEW') {
+            pretext += `View: Fleet Overview\n`;
+            pretext += `Total Trips: ${data.totalTrips || 0}\n`;
+            pretext += `Active Trips: ${data.activeTrips || 0}\n\n`;
+            
+            pretext += `SUMMARY OF FLEET ANOMALIES & NOTIFICATIONS:\n`;
+            if (data.alerts && data.alerts.length > 0) {
+                data.alerts.forEach(a => {
+                    pretext += `- [${a.type.toUpperCase()}] ${a.title} (${a.sub})\n`;
+                });
+            } else {
+                pretext += `All trips performing within normal parameters. No active alerts.\n`;
+            }
+        } else {
+            const { trip, sensorData, kpis } = data;
+            pretext += `View: Trip Details\n`;
+            pretext += `Trip ID: ${trip?.trip_id || 'N/A'}\n`;
+            pretext += `Truck: ${trip?.truck_id || 'N/A'}\n`;
+            pretext += `Status: ${trip?.status || 'N/A'}\n`;
+            pretext += `Quality Score: ${kpis?.qualityScore ?? 'N/A'}/100\n`;
+            pretext += `Temperature Compliance: ${kpis?.tempCompliance ?? 'N/A'}%\n\n`;
+            
+            pretext += `SUMMARY OF ANOMALIES:\n`;
+            pretext += `- Shock Events: ${kpis?.shocks?.length || 0}\n`;
+            pretext += `- Cold Violations: ${kpis?.cold?.length || 0}\n`;
+            pretext += `- Hot Violations: ${kpis?.hot?.length || 0}\n\n`;
 
-        if (!kpis?.cold?.length && !kpis?.hot?.length && !kpis?.shocks?.length) {
-            pretext += `No threshold violations recorded. Clean run.\n`;
+            pretext += `DETAILED VIOLATION TIMES (Threshold Crosses):\n`;
+            let hasViolations = false;
+            if (kpis?.cold?.length > 0) {
+                pretext += `Low TEMP excursions (<-22°C):\n`;
+                kpis.cold.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg || 0).toFixed(1)}°C\n`);
+                hasViolations = true;
+            }
+            if (kpis?.hot?.length > 0) {
+                pretext += `High TEMP excursions (>-18°C):\n`;
+                kpis.hot.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.avg || 0).toFixed(1)}°C\n`);
+                hasViolations = true;
+            }
+            if (kpis?.shocks?.length > 0) {
+                pretext += `SHOCK events (>0.5G):\n`;
+                kpis.shocks.forEach(v => pretext += `  - ${v.time}: ${parseFloat(v.max_accel || 0).toFixed(2)}G\n`);
+                hasViolations = true;
+            }
+
+            if (!hasViolations) {
+                pretext += `No threshold violations recorded. Clean run.\n`;
+            }
         }
 
         // Save to Pretext.txt via backend
@@ -91,11 +111,17 @@ export default function MrHodhaMaalu() {
         return pretext;
     }, []);
 
+    // Auto-update pretext when dashboard data changes and chat is open
+    useEffect(() => {
+        if (isOpen && dashboardData) {
+            createPretext(dashboardData);
+        }
+    }, [isOpen, dashboardData, createPretext]);
+
     const toggleChat = async () => {
         if (!isOpen) {
             // Starting fresh chat
             setMessages([{ role: 'bot', content: "Hi. I'm Mr. Hodha-Maalu, how can I help with your inspection?" }]);
-            await createPretext(dashboardData);
             setIsOpen(true);
         } else {
             // Ending chat

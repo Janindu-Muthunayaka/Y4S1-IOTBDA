@@ -1,0 +1,188 @@
+#include "HX711.h"
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+// --- HX711 Pins ---
+const int LOADCELL_DOUT_PIN = 32;
+const int LOADCELL_SCK_PIN  = 4;
+
+// --- Button Pin ---
+const int BUTTON_PIN = 14;  // Use any available GPIO. Connect one leg to GPIO14, other to GND.
+
+// --- Fixed UID (replaces RFID card) ---
+const char* FIXED_UID = "4021C561";
+
+// --- Network & MQTT ---
+const char* ssid = "LOQ7929";
+const char* password = "12345678";
+const char* mqtt_server = "broker.hivemq.com";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// --- Logic Tuning ---
+const float minimumUploadValue = 0.0; // grams. Only send to broker if weight > this value.
+
+// --- HX711 Tuning ---
+const float DIVIDER   = 673;
+const float OFFSET    = 0;
+const float ZERO_BAND = 5.0;  // snap to 0 if within ±5g
+
+// --- HX711 Setup ---
+HX711 scale;
+bool lastWiFiState = false;
+bool lastMQTTState = false;
+
+// --- Button State ---
+bool lastButtonState = HIGH;  // HIGH = not pressed (INPUT_PULLUP)
+
+void setup_wifi() {
+  delay(10);
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { 
+    delay(500); 
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+}
+
+void reconnect() {
+  while (!client.connected() && WiFi.status() == WL_CONNECTED) {
+    Serial.print("WiFi IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("Attempting MQTT connection...");
+    String clientId = "ESP32Gate-";
+    clientId += String(random(0xffff), HEX);
+    
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial);
+
+  // Init button with internal pull-up
+  // This means: not pressed = HIGH, pressed = LOW
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  // Init WiFi
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+
+  IPAddress brokerIP;
+  if (WiFi.hostByName(mqtt_server, brokerIP)) {
+    Serial.print("Broker resolved to: ");
+    Serial.println(brokerIP);
+  } else {
+    Serial.println("DNS resolution FAILED");
+  }
+
+  // Init Scale
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  if (!scale.is_ready()) {
+    Serial.println("ERROR: HX711 not found!");
+    while (1);
+  }
+
+  Serial.println("Zeroing scale... DO NOT TOUCH for 3 seconds.");
+  delay(3000);
+  scale.tare();
+  Serial.println("Scale zeroed! Ready — press the button to scan.\n");
+}
+
+void loop() {
+  bool currentWiFiState = (WiFi.status() == WL_CONNECTED);
+  
+  if (currentWiFiState) {
+    if (!client.connected()) reconnect();
+    if (client.connected()) client.loop();
+  }
+
+  bool currentMQTTState = client.connected();
+
+  // Print Status Update ONLY when a connection state changes
+  if (currentWiFiState != lastWiFiState || currentMQTTState != lastMQTTState) {
+    lastWiFiState = currentWiFiState;
+    lastMQTTState = currentMQTTState;
+    
+    Serial.println("\n--- System Status Changed ---");
+    Serial.print("WiFi: "); Serial.println(currentWiFiState ? "CONNECTED" : "DISCONNECTED");
+    Serial.print("MQTT: "); Serial.println(currentMQTTState ? "CONNECTED" : "DISCONNECTED");
+    Serial.println("-----------------------------\n");
+  }
+
+  // --- Button Detection ---
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+
+  // Detect press on falling edge (HIGH → LOW)
+  if (currentButtonState == HIGH) {
+    lastButtonState = HIGH;
+    return;
+  }
+
+  // Button is LOW (pressed) — only act on the transition, not while held
+  if (lastButtonState == LOW) return;
+  lastButtonState = LOW;
+
+  delay(50); // simple debounce
+
+  Serial.println(F("Button pressed!"));
+  Serial.print(F("UID (fixed): "));
+  Serial.println(FIXED_UID);
+
+  float grams = 0;
+  // Read weight
+  if (scale.is_ready()) {
+    long raw = scale.get_value(10);
+    grams = (raw / DIVIDER) + OFFSET;
+    if (abs(grams) <= ZERO_BAND) grams = 0.0;
+
+    Serial.print(F("Weight: "));
+    Serial.print(grams, 1);
+    Serial.println(F(" g"));
+  } else {
+    Serial.println(F("Weight: HX711 not ready"));
+  }
+
+  // --- MQTT LOGIC ---
+  if (grams > minimumUploadValue) {
+    Serial.println("[LOGIC] Conditions met. Preparing ...");
+    
+    // Create JSON Payload
+    DynamicJsonDocument doc(256);
+    doc["type"]           = "gate_scan";
+    doc["truck_id"]       = FIXED_UID;
+    doc["weight"]         = grams;
+    doc["trip_direction"] = "TOBEDECLARED";
+
+    String payload;
+    serializeJson(doc, payload);
+    
+    if (client.connected()) {
+      Serial.print("[PUBLISH] Sending to IOTBDAGateOne: ");
+      client.publish("IOTBDAGateOne", payload.c_str());
+    } else {
+      Serial.println("[ERROR] Cannot publish. MQTT is disconnected!");
+    }
+  } else {
+    Serial.print("[LOGIC] Ignored. Weight (");
+    Serial.print(grams, 1);
+    Serial.print("g) is not greater than minimumUploadValue (");
+    Serial.print(minimumUploadValue, 1);
+    Serial.println("g).");
+  }
+
+  Serial.println(F("----------------------------------------"));
+  delay(500); // small debounce buffer after a full scan
+}

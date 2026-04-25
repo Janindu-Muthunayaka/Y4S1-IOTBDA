@@ -6,6 +6,7 @@ import {
     LineElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { useChatbot } from '../Chatbot/ChatbotContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -17,6 +18,7 @@ export default function QAInspectorA() {
     const [selectedTripId, setSelectedTripId] = useState('');
     const [sensorData, setSensorData] = useState(null);
     const [tripDetails, setTripDetails] = useState(null);
+    const { updateSnapshot } = useChatbot();
 
     useEffect(() => {
         const fetchTrips = async () => {
@@ -85,6 +87,23 @@ export default function QAInspectorA() {
         shockEvents = motions.filter(m => m.max_accel > 0.5).length;
         qualityScore = Math.max(0, Math.floor(tempCompliance - (shockEvents * 5)));
     }
+
+    // Update chatbot snapshot
+    useEffect(() => {
+        if (tripDetails && sensorData) {
+            updateSnapshot({
+                trip: tripDetails,
+                sensorData: sensorData,
+                kpis: {
+                    qualityScore,
+                    tempCompliance,
+                    cold: (sensorData.temperature_data || []).filter(t => t.avg < -22),
+                    hot: (sensorData.temperature_data || []).filter(t => t.avg > -18),
+                    shocks: (sensorData.motion_data || []).filter(m => m.max_accel > 0.5)
+                }
+            });
+        }
+    }, [tripDetails, sensorData, qualityScore, tempCompliance, updateSnapshot]);
 
     const labels = sensorData?.temperature_data?.map(d => d.time) || [];
     

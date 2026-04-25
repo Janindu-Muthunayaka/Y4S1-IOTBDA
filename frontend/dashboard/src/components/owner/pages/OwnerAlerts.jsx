@@ -7,7 +7,7 @@ function buildAlerts(trips, liveData) {
 
   trips.forEach(trip => {
     const sensors = liveData[trip.trip_id];
-    const temps   = sensors?.temperature_data || [];
+    const temps = sensors?.temperature_data || [];
     const motions = sensors?.motion_data || [];
     const quality = computeQuality(sensors);
 
@@ -51,8 +51,11 @@ function buildAlerts(trips, liveData) {
     }
 
     // Weight anomaly
-    if (trip.weight1 != null && trip.weight2 != null && trip.weight1 > 0) {
-      const loss = ((trip.weight1 - trip.weight2) / trip.weight1) * 100;
+    const w1 = trip.startWeight ?? trip.weight1;
+    const w2 = trip.endWeight ?? trip.weight2;
+
+    if (w1 != null && w2 != null && w1 > 0) {
+      const loss = ((w1 - w2) / w1) * 100;
       if (Math.abs(loss) > 5) {
         alerts.push({
           id: `weight-${trip.trip_id}`,
@@ -95,9 +98,9 @@ function buildAlerts(trips, liveData) {
 function AlertRow({ alert, isFirst }) {
   const isCrit = alert.type === 'crit';
   const borderColor = isCrit ? '#dc2626' : '#d97706';
-  const bgColor     = isCrit ? '#fef2f2' : '#fffbeb';
-  const textColor   = isCrit ? '#dc2626' : '#d97706';
-  const badgeCls    = isCrit ? 'o-badge--crit' : 'o-badge--warn';
+  const bgColor = isCrit ? '#fef2f2' : '#fffbeb';
+  const textColor = isCrit ? '#dc2626' : '#d97706';
+  const badgeCls = isCrit ? 'o-badge--crit' : 'o-badge--warn';
 
   const fmtTime = d => {
     if (!d) return '--';
@@ -217,8 +220,8 @@ function VerticalTimeline({ alerts }) {
           {/* Timeline items */}
           {items.map((a, i) => {
             const isCrit = a.type === 'crit';
-            const dotColor  = isCrit ? '#dc2626' : '#d97706';
-            const bgColor   = isCrit ? '#fef2f2' : '#fffbeb';
+            const dotColor = isCrit ? '#dc2626' : '#d97706';
+            const bgColor = isCrit ? '#fef2f2' : '#fffbeb';
             const isLast = i === items.length - 1;
 
             return (
@@ -287,23 +290,23 @@ export default function OwnerAlerts({ trips, liveData }) {
 
   const allAlerts = useMemo(() => buildAlerts(trips, liveData), [trips, liveData]);
 
-  const critAlerts   = allAlerts.filter(a => a.type === 'crit');
-  const warnAlerts   = allAlerts.filter(a => a.type === 'warn');
-  const tempAlerts   = allAlerts.filter(a => a.category === 'temperature');
-  const vibAlerts    = allAlerts.filter(a => a.category === 'vibration');
+  const critAlerts = allAlerts.filter(a => a.type === 'crit');
+  const warnAlerts = allAlerts.filter(a => a.type === 'warn');
+  const tempAlerts = allAlerts.filter(a => a.category === 'temperature');
+  const vibAlerts = allAlerts.filter(a => a.category === 'vibration');
   const weightAlerts = allAlerts.filter(a => a.category === 'weight');
 
-  const filtered = filter === 'all'         ? allAlerts
-    : filter === 'crit'        ? critAlerts
-    : filter === 'warn'        ? warnAlerts
-    : filter === 'temperature' ? tempAlerts
-    : filter === 'vibration'   ? vibAlerts
-    : filter === 'weight'      ? weightAlerts
-    : allAlerts;
+  const filtered = filter === 'all' ? allAlerts
+    : filter === 'crit' ? critAlerts
+      : filter === 'warn' ? warnAlerts
+        : filter === 'temperature' ? tempAlerts
+          : filter === 'vibration' ? vibAlerts
+            : filter === 'weight' ? weightAlerts
+              : allAlerts;
 
   // Export CSV
   const exportCSV = () => {
-    const rows = [['Type','Category','Kind','Truck ID','Description','Time']];
+    const rows = [['Type', 'Category', 'Kind', 'Truck ID', 'Description', 'Time']];
     allAlerts.forEach(a => rows.push([
       a.type, a.category, a.kind, a.truck_id,
       `"${a.desc}"`,
@@ -315,12 +318,12 @@ export default function OwnerAlerts({ trips, liveData }) {
   };
 
   const FILTERS = [
-    { key: 'all',         label: `All (${allAlerts.length})` },
-    { key: 'crit',        label: `🔴 Critical (${critAlerts.length})` },
-    { key: 'warn',        label: `⚠️ Warning (${warnAlerts.length})` },
+    { key: 'all', label: `All (${allAlerts.length})` },
+    { key: 'crit', label: `🔴 Critical (${critAlerts.length})` },
+    { key: 'warn', label: `⚠️ Warning (${warnAlerts.length})` },
     { key: 'temperature', label: `🌡️ Temp (${tempAlerts.length})` },
-    { key: 'vibration',   label: `⚡ Vibration (${vibAlerts.length})` },
-    { key: 'weight',      label: `⚖️ Weight (${weightAlerts.length})` },
+    { key: 'vibration', label: `⚡ Vibration (${vibAlerts.length})` },
+    { key: 'weight', label: `⚖️ Weight (${weightAlerts.length})` },
   ];
 
   return (
