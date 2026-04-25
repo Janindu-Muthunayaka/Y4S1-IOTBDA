@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ChatbotProvider as Driver_ChatbotProvider, useChatbot } from './Driver_Chatbot/Driver_ChatbotContext';
 import Driver_MrHodhaMaalu from './Driver_Chatbot/Driver_MrHodhaMaalu';
+import DriverSidebar from './DriverSidebar';
 import './driver.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -55,7 +56,14 @@ function DriverTemperatureContent() {
     const allAvgs = temps.map(t => Number(t.avg));
     const minTemp = allAvgs.length > 0 ? Math.min(...allAvgs).toFixed(1) : '--';
     const maxTemp = allAvgs.length > 0 ? Math.max(...allAvgs).toFixed(1) : '--';
+    const avgTemp = allAvgs.length > 0 ? (allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length).toFixed(1) : '--';
+    const dataPoints = temps.length;
     const isTempSafe = currentTemp !== '--' && Number(currentTemp) <= -18;
+
+    // Last updated timestamp
+    const lastUpdatedStr = sensorData?.last_updated
+        ? new Date(sensorData.last_updated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+        : '--';
 
     // Gauge logic — range -30 to 0
     const gaugeMin = -30, gaugeMax = 0;
@@ -76,69 +84,14 @@ function DriverTemperatureContent() {
     const nx = cx + (r - 16) * Math.cos(nr);
     const ny = cy + (r - 16) * Math.sin(nr);
 
-    // History chart — use last 7 readings
-    const historyBars = temps.slice(-7).map((t, i) => {
+    // History chart — use last 7 readings (time stored as HH:MM string, use directly)
+    const historyBars = temps.slice(-7).map((t) => {
         const val = Number(t.avg);
         const isWarning = val > -18;
         const pct = Math.min(100, Math.max(10, ((val - gaugeMin) / (gaugeMax - gaugeMin)) * 100));
-        const time = t.time ? new Date(t.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : `T-${7 - i}`;
-        return { pct, isWarning, time, val };
+        return { pct, isWarning, time: t.time || '--:--', val };
     });
 
-    const sidebar = (activeItem) => (
-        <div className="driver-sidebar">
-            <div className="driver-avatar-container">
-                <div className="driver-avatar">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="#7a5c3a"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                </div>
-                <span className="driver-avatar-name">Bumal</span>
-                <span className="driver-avatar-role">Driver</span>
-            </div>
-            <div className="driver-divider"></div>
-
-            <div className={`driver-nav-item ${activeItem === 'dashboard' ? 'active' : ''}`} onClick={() => navigate('/driver/dashboard')}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-                </svg>
-                <span>Dashboard</span>
-            </div>
-
-            <div className={`driver-nav-item ${activeItem === 'temp' ? 'active' : ''}`} onClick={() => navigate('/driver/temperature')}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
-                </svg>
-                <span>Temp</span>
-            </div>
-
-            <div className={`driver-nav-item ${activeItem === 'shocks' ? 'active' : ''}`} onClick={() => navigate('/driver/shocks')}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12"/>
-                </svg>
-                <span>Shocks</span>
-            </div>
-
-            <div className="driver-nav-item" onClick={() => navigate('/driver/notifications')} style={{ position: 'relative', cursor: 'pointer' }}>
-                <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    </svg>
-                    <div style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', background: '#ff3b30', borderRadius: '50%', border: '1.5px solid #ffffff' }}></div>
-                </div>
-                <span>Notif</span>
-            </div>
-
-            <div style={{ flex: 1 }}></div>
-
-            <div className="driver-nav-item">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="driver-nav-icon" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-                <span>Settings</span>
-            </div>
-        </div>
-    );
 
     return (
         <div className="driver-dashboard-wrapper">
@@ -148,7 +101,7 @@ function DriverTemperatureContent() {
                     <div className="driver-dynamic-island"></div>
                     <div className="driver-inner-scroll">
 
-                        {sidebar('temp')}
+                        <DriverSidebar activeItem="temp" hasAlert={!isTempSafe} />
 
                         {/* MAIN CONTENT */}
                         <div className="driver-main-content">
@@ -200,7 +153,7 @@ function DriverTemperatureContent() {
                                         <span>{isTempSafe ? 'Optimal' : 'Alert'}</span>
                                     </div>
                                 </div>
-                                <div style={{ fontSize: '9.5px', color: '#8e8e93', marginBottom: '14px' }}>Last updated: Just now</div>
+                                <div style={{ fontSize: '9.5px', color: '#8e8e93', marginBottom: '14px' }}>Last updated: {lastUpdatedStr}</div>
 
                                 {/* Arc Gauge */}
                                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
@@ -237,19 +190,18 @@ function DriverTemperatureContent() {
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a4aff" strokeWidth="2" strokeLinecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
-                                            <span>Humidity</span>
+                                            <span>Avg Temp</span>
                                         </div>
-                                        <div className="dt-stat-value">64%</div>
+                                        <div className="dt-stat-value">{avgTemp !== '--' ? `${avgTemp}°C` : '--'}</div>
                                     </div>
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2" strokeLinecap="round">
-                                                <rect x="1" y="6" width="18" height="12" rx="2"/><path d="M23 13v-2"/>
-                                                <rect x="3" y="8" width="12" height="8" rx="1" fill="#30d158" stroke="none"/>
+                                                <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
                                             </svg>
-                                            <span>Sensor Battery</span>
+                                            <span>Data Points</span>
                                         </div>
-                                        <div className="dt-stat-value">82%</div>
+                                        <div className="dt-stat-value">{dataPoints}</div>
                                     </div>
                                     <div className="dt-stat-card">
                                         <div className="dt-stat-label">
@@ -291,40 +243,36 @@ function DriverTemperatureContent() {
                                 <div style={{ position: 'relative' }}>
                                     {/* Safe range dashed line */}
                                     <div style={{ position: 'absolute', top: '12px', left: 0, right: 0, borderTop: '1.5px dashed #c8e6c9', zIndex: 1 }}></div>
-                                    {/* Bars */}
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '80px', padding: '0 2px', position: 'relative', zIndex: 2, marginBottom: '8px' }}>
-                                        {historyBars.length > 0 ? historyBars.map((bar, i) => (
-                                            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
-                                                <div style={{
-                                                    width: '100%',
-                                                    height: `${bar.pct}%`,
-                                                    background: bar.isWarning
-                                                        ? 'linear-gradient(to top, #e67e22, #ff9f0a)'
-                                                        : 'linear-gradient(to top, #1db954, #4ade80)',
-                                                    borderRadius: '5px 5px 0 0',
-                                                    transition: 'height 0.4s ease'
-                                                }}></div>
+                                    {/* Bars (or empty state) */}
+                                    {historyBars.length > 0 ? (
+                                        <>
+                                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '80px', padding: '0 2px', position: 'relative', zIndex: 2, marginBottom: '8px' }}>
+                                                {historyBars.map((bar, i) => (
+                                                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            height: `${bar.pct}%`,
+                                                            background: bar.isWarning
+                                                                ? 'linear-gradient(to top, #e67e22, #ff9f0a)'
+                                                                : 'linear-gradient(to top, #1db954, #4ade80)',
+                                                            borderRadius: '5px 5px 0 0',
+                                                            transition: 'height 0.4s ease'
+                                                        }}></div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        )) : (
-                                            // Fallback decorative bars
-                                            [68, 55, 72, 92, 62, 58, 50].map((h, i) => (
-                                                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
-                                                    <div style={{ width: '100%', height: `${h}%`, background: i === 3 ? 'linear-gradient(to top,#e67e22,#ff9f0a)' : 'linear-gradient(to top,#1db954,#4ade80)', borderRadius: '5px 5px 0 0' }}></div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                    {/* X-axis labels */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 2px' }}>
-                                        {historyBars.length > 0
-                                            ? historyBars.map((bar, i) => (
-                                                <span key={i} style={{ fontSize: '8px', color: '#8e8e93' }}>{bar.time}</span>
-                                            ))
-                                            : ['10:00', '11:00', '12:00', '14:00', '16:00'].map((t, i) => (
-                                                <span key={i} style={{ fontSize: '8px', color: '#8e8e93' }}>{t}</span>
-                                            ))
-                                        }
-                                    </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 2px' }}>
+                                                {historyBars.map((bar, i) => (
+                                                    <span key={i} style={{ fontSize: '8px', color: '#8e8e93' }}>{bar.time}</span>
+                                                ))}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div style={{ height: '88px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#aaa' }}>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                                            <span style={{ fontSize: '10px' }}>No temperature data yet</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
