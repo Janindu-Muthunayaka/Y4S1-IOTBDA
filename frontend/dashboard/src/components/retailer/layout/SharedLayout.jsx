@@ -27,7 +27,7 @@ const BellIcon = ({ size = 16 }) => (
   </svg>
 )
 const BackIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.82)" strokeWidth="2">
     <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
   </svg>
 )
@@ -49,13 +49,21 @@ export default function SharedLayout() {
 
       {/* ── Sidebar ── */}
       <aside style={{
-        width: 155, minWidth: 155, background: 'linear-gradient(180deg, #16022e 0%, #2d0a52 45%, #521278 100%)',
+        width: 155, minWidth: 155,
+        background: 'linear-gradient(180deg, #16022e 0%, #2d0a52 45%, #521278 100%)',
         display: 'flex', flexDirection: 'column',
-        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 100, boxShadow: '2px 0 20px rgba(0,0,0,0.25)',
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 100,
+        boxShadow: '2px 0 20px rgba(0,0,0,0.25)',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 14px 16px' }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.12)',border: '1px solid rgba(255,255,255,0.18)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>CL</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 14px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 9,
+            background: 'rgba(255,255,255,0.12)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0
+          }}>CL</div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>CargoLink</span>
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: 600, letterSpacing: 0.5 }}>RETAILER PORTAL</span>
@@ -63,7 +71,7 @@ export default function SharedLayout() {
         </div>
 
         {/* Nav section label */}
-        <div style={{ padding: '10px 14px 4px', color: '#6B7280', fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>Main Menu</div>
+        <div style={{ padding: '10px 14px 4px', color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>Main Menu</div>
 
         {/* Nav items — driven by NAV_ITEMS array above */}
         {NAV_ITEMS.map(item => {
@@ -76,19 +84,27 @@ export default function SharedLayout() {
             <div
               key={item.path}
               onClick={() => navigate(item.path)}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 14px', cursor: 'pointer',
-                color: active ? '#fff' : '#9CA3AF',
+                color: active ? '#fff' : 'rgba(255,255,255,0.82)',
                 background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
-                borderRadius: active ? 6 : 0,
-                margin: active ? '1px 6px' : '1px 0',
-                position: 'relative',
                 borderRadius: 8,
-                transition: 'background 0.12s',
+                margin: '1px 6px',
                 fontSize: 13, fontWeight: active ? 600 : 400,
+                position: 'relative',
+                transition: 'background 0.12s',
               }}
             >
+              {/* Active left accent bar */}
+              {active && (
+                <span style={{
+                  position: 'absolute', left: 0, top: '20%', bottom: '20%',
+                  width: 3, background: '#c084fc', borderRadius: '0 4px 4px 0'
+                }} />
+              )}
               {item.icon}
               {item.label}
               {item.badge && (
@@ -101,18 +117,24 @@ export default function SharedLayout() {
         })}
 
         {/* Navigation section */}
-        <div style={{ padding: '14px 14px 4px', color: '#6B7280', fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginTop: 12 }}>Navigation</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', color: '#9CA3AF', fontSize: 12, cursor: 'pointer' }}>
+        <div style={{ padding: '14px 14px 4px', color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginTop: 12 }}>Navigation</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', color: 'rgba(255,255,255,0.82)', fontSize: 12, cursor: 'pointer' }}>
           <BackIcon /> Back to Hub
         </div>
 
         {/* User row */}
-        <div style={{ marginTop: 'auto', borderTop: '1px solid #2D2A6E', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 10 }}>RT</div>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
+              border: '2px solid rgba(255,255,255,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontWeight: 700, fontSize: 10
+            }}>RT</div>
             <span style={{ color: '#D1D5DB', fontSize: 12, fontWeight: 500 }}>Retail Team</span>
           </div>
-          <div style={{ color: '#9CA3AF', cursor: 'pointer' }}><BellIcon size={14} /></div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}><BellIcon size={14} /></div>
         </div>
       </aside>
 
