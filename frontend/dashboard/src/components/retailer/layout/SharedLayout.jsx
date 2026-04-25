@@ -1,5 +1,7 @@
 // src/layouts/SharedLayout.jsx
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { ChatbotProvider as Retail_ChatbotProvider } from '../Retail_Chatbot/Retail_ChatbotContext';
+import Retail_MrHodhaMaalu from '../Retail_Chatbot/Retail_MrHodhaMaalu';
 
 const GridIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -40,6 +42,14 @@ const NAV_ITEMS = [
 ]
 
 export default function SharedLayout() {
+  return (
+    <Retail_ChatbotProvider>
+      <SharedLayoutContent />
+    </Retail_ChatbotProvider>
+  );
+}
+
+function SharedLayoutContent() {
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -142,6 +152,7 @@ export default function SharedLayout() {
       <div style={{ marginLeft: 155, flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         <Outlet />
       </div>
+      <Retail_MrHodhaMaalu />
     </div>
   )
 }
