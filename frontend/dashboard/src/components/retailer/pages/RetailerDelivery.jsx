@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useChatbot } from '../Retail_Chatbot/Retail_ChatbotContext';
 
 /* ---------------- MOCK DATA ---------------- */
 const TEMP_POINTS = [
@@ -250,6 +251,7 @@ function ShockChart() {
 export default function RetailerDelivery() {
   const [time, setTime] = useState("");
   const navigate = useNavigate();
+  const { updateSnapshot } = useChatbot();
 
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString("en-US"));
@@ -257,6 +259,14 @@ export default function RetailerDelivery() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    updateSnapshot({
+      type: 'DELIVERY_PAGE',
+      tempData: TEMP_POINTS,
+      shockEvents: SHOCK_EVENTS
+    });
+  }, [updateSnapshot]);
 
   const s = {
     container: {
