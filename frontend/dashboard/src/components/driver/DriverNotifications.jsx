@@ -59,6 +59,8 @@ function DriverNotificationsContent() {
     const isTempAlert = currentTemp !== null && currentTemp > -18;
     const shockEvents = motions.filter(m => m.max_accel > 0.5);
     const isShockAlert = shockEvents.length > 0;
+    const w1 = tripDetails?.weight1 ?? tripDetails?.start_weight ?? tripDetails?.weight ?? null;
+    const w2 = tripDetails?.weight2 ?? tripDetails?.end_weight ?? null;
     const w1 = tripDetails?.startWeight ?? tripDetails?.start_weight ?? tripDetails?.weight ?? null;
     const w2 = tripDetails?.endWeight ?? tripDetails?.end_weight ?? null;
     const isWeightAlert = w1 !== null && w2 !== null && Math.abs(Number(w1) - Number(w2)) > 50;

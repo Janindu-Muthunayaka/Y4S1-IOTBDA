@@ -108,6 +108,8 @@ function DriverTemperatureContent() {
     const nx = cx + (r - 16) * Math.cos(nr);
     const ny = cy + (r - 16) * Math.sin(nr);
 
+    // History chart — use last 7 readings (time stored as HH:MM string, use directly)
+    const historyBars = temps.slice(-7).map((t) => {
     // History chart — use last 30 readings
     const historyBars = temps.slice(-30).map((t) => {
         const val = Number(t.avg);
@@ -270,6 +272,18 @@ function DriverTemperatureContent() {
                                     {/* Bars (or empty state) */}
                                     {historyBars.length > 0 ? (
                                         <>
+                                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '80px', padding: '0 2px', position: 'relative', zIndex: 2, marginBottom: '8px' }}>
+                                                {historyBars.map((bar, i) => (
+                                                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            height: `${bar.pct}%`,
+                                                            background: bar.isWarning
+                                                                ? 'linear-gradient(to top, #e67e22, #ff9f0a)'
+                                                                : 'linear-gradient(to top, #1db954, #4ade80)',
+                                                            borderRadius: '5px 5px 0 0',
+                                                            transition: 'height 0.4s ease'
+                                                        }}></div>
                                             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '80px', padding: '0 2px', position: 'relative', zIndex: 2, marginBottom: '8px' }}>
                                                 {historyBars.map((bar, i) => (
                                                     <div key={i} style={{ width: '3px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
@@ -288,6 +302,9 @@ function DriverTemperatureContent() {
                                                 ))}
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 2px' }}>
+                                                {historyBars.map((bar, i) => (
+                                                    <span key={i} style={{ fontSize: '8px', color: '#8e8e93' }}>{bar.time}</span>
+                                                ))}
                                                 <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600 }}>START</span>
                                                 <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600 }}>END</span>
                                             </div>
