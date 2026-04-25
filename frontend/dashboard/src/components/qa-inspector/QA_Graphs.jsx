@@ -7,6 +7,7 @@ import {
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import QASidebar from './QASidebar';
+import { useChatbot } from './Chatbot/ChatbotContext';
 import './QA.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
@@ -50,6 +51,7 @@ export default function QA_Graphs() {
     const [isLoading, setIsLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState('just now');
     const syncTimer = useRef(0);
+    const { updateSnapshot } = useChatbot();
 
     useEffect(() => {
         if (!id) return;
@@ -97,6 +99,29 @@ export default function QA_Graphs() {
     const motionPeak = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel || 0)).toFixed(2) : '--';
     const motionAvg = motions.length > 0 ? (motions.reduce((s, m) => s + (m.max_accel || 0), 0) / motions.length).toFixed(2) : '--';
     const impactEvents = motions.filter(m => m.max_accel > 0.3);
+
+    // ── Update Chatbot Snapshot ──
+    useEffect(() => {
+        if (tripDetails && sensorData) {
+            // Simplified KPI for graphs view
+            const tempViolationsHot = temps.filter(t => t.avg > -18);
+            const shockEvents = motions.filter(m => m.max_accel > 0.5);
+            const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolationsHot.length) / temps.length) * 100) : 100;
+            const qualityScore = Math.max(0, Math.floor(tempCompliance - (shockEvents.length * 5)));
+
+            updateSnapshot({
+                trip: tripDetails,
+                sensorData: sensorData,
+                kpis: {
+                    qualityScore,
+                    tempCompliance,
+                    cold: temps.filter(t => t.avg < -22),
+                    hot: tempViolationsHot,
+                    shocks: shockEvents
+                }
+            });
+        }
+    }, [tripDetails, sensorData, updateSnapshot, temps, motions]);
 
     // ── Time labels ──
     const timeLabels = temps.map(t => t.time ? fmtTime(t.time) : '');
