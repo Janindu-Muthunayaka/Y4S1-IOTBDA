@@ -7,6 +7,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import OpenAI from 'openai';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // ─── Environment & Paths ─────────────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url);
@@ -291,6 +294,37 @@ app.post('/api/chatbot/:role/pretext', (req, res) => {
         res.json({ success: true, message: 'Pretext updated successfully' });
     } catch (err) {
         res.status(500).json({ error: `Failed to write pretext: ${err.message}` });
+    }
+});
+
+// 4. Owner Chatbot — OpenAI GPT Chat (API key is ONLY on the server, never exposed to browser)
+app.post('/api/chatbot/owner/chat', async (req, res) => {
+    try {
+        const { systemPrompt, messages } = req.body;
+
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey || apiKey === 'your-openai-api-key-here') {
+            return res.status(500).json({ error: 'OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.' });
+        }
+
+        const openai = new OpenAI({ apiKey });
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...messages
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+        });
+
+        const botResponse = completion.choices[0]?.message?.content || 'No response generated.';
+        res.json({ response: botResponse });
+    } catch (err) {
+        const errorMsg = err?.error?.message || err.message || 'Unknown OpenAI error';
+        console.error('[Owner Chatbot] OpenAI API Error:', errorMsg);
+        res.status(500).json({ error: errorMsg });
     }
 });
 

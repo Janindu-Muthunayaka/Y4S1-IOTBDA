@@ -51,8 +51,11 @@ function buildAlerts(trips, liveData) {
     }
 
     // Weight anomaly
-    if (trip.weight1 != null && trip.weight2 != null && trip.weight1 > 0) {
-      const loss = ((trip.weight1 - trip.weight2) / trip.weight1) * 100;
+    const w1 = trip.startWeight ?? trip.weight1;
+    const w2 = trip.endWeight ?? trip.weight2;
+
+    if (w1 != null && w2 != null && w1 > 0) {
+      const loss = ((w1 - w2) / w1) * 100;
       if (Math.abs(loss) > 5) {
         alerts.push({
           id: `weight-${trip.trip_id}`,

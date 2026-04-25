@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import logo from '../../assets/logo.svg';
 
 /**
  * Shared QASidebar component to ensure consistency across the QA module.
@@ -16,7 +17,7 @@ const QASidebar = ({ activeTab, tripId, alerts = [] }) => {
     return (
         <aside className="qa-sidebar">
             <div className="qa-sidebar__logo">
-                <div className="qa-sidebar__logo-icon">CL</div>
+                <img src={logo} alt="Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
                 <div>
                     <div className="qa-sidebar__logo-text">CargoLink</div>
                     <div className="qa-sidebar__logo-sub">QA Portal</div>

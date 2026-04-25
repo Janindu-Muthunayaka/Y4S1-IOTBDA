@@ -7,3 +7,5 @@ Route: Warehouse → Retailer
 Cargo: Mismatch (Exp: 114.528 kg, Cur: 112.912 kg)
 Temp: -18.6°C (100% Compliance)
 Shocks: NORMAL (0 events)
+
+STATUS: Active alerts detected in system.
