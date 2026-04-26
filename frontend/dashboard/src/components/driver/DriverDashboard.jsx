@@ -65,7 +65,8 @@ function DriverDashboardContent() {
 
         if (temps.length > 0) {
             currentTemp = Number(temps[temps.length - 1].avg).toFixed(1);
-            isTempSafe = currentTemp <= -18;
+            // Sync with -18 to -20 safe range
+            isTempSafe = Number(currentTemp) <= -18 && Number(currentTemp) >= -20;
             tempStatus = isTempSafe ? 'Within Safe Range' : 'Temperature Alert';
             maxRecordedTemp = Math.max(...temps.map(t => Number(t.max))).toFixed(1);
         }
@@ -109,7 +110,7 @@ function DriverDashboardContent() {
                     qualityScore: 100 - (shockEventsCount * 2),
                     tempCompliance: isTempSafe ? 100 : 0,
                     shocks: sensorData.motion_data.filter(m => m.max_accel > 0.5),
-                    cold: sensorData.temperature_data.filter(t => Number(t.avg) < -22),
+                    cold: sensorData.temperature_data.filter(t => Number(t.avg) < -20),
                     hot: sensorData.temperature_data.filter(t => Number(t.avg) > -18)
                 }
             });
@@ -196,14 +197,14 @@ function DriverDashboardContent() {
                                         onClick={() => navigate('/driver/temperature')}
                                         style={{ cursor: 'pointer' }}
                                     >
-                                        <div className="driver-condition-title">Highest Temperature</div>
+                                        <div className="driver-condition-title">Current Temperature</div>
                                         {/* Clean Arc Gauge */}
                                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
                                             {(() => {
                                                 const cx = 60, cy = 56, r = 44;
                                                 // Range: -30°C (safe) to 0°C (danger)
                                                 const minTemp = -30, maxTemp = 0;
-                                                const tempVal = maxRecordedTemp !== undefined ? Math.min(Math.max(Number(maxRecordedTemp), minTemp), maxTemp) : minTemp;
+                                                const tempVal = currentTemp !== '--' ? Math.min(Math.max(Number(currentTemp), minTemp), maxTemp) : minTemp;
                                                 // Angle from 210° (left) to 330° (right) = 120° sweep, clockwise
                                                 const startAngleDeg = 210;
                                                 const endAngleDeg = 330;
@@ -247,7 +248,7 @@ function DriverDashboardContent() {
                                             })()}
                                         </div>
                                         <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 700, color: '#1c1c1e' }}>
-                                            {maxRecordedTemp !== undefined ? `${maxRecordedTemp}°C` : '--'}
+                                            {currentTemp !== '--' ? `${currentTemp}°C` : '--'}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '6px' }}>
                                             {isTempSafe ? (
