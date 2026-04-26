@@ -60,7 +60,7 @@ function DriverTemperatureContent() {
     const maxTemp = allAvgs.length > 0 ? Math.max(...allAvgs).toFixed(1) : '--';
     const avgTemp = allAvgs.length > 0 ? (allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length).toFixed(1) : '--';
     const dataPoints = temps.length;
-    const isTempSafe = currentTemp !== '--' && Number(currentTemp) <= -18;
+    const isTempSafe = currentTemp !== '--' && Number(currentTemp) <= -18 && Number(currentTemp) >= -20;
 
     // Last updated timestamp
     const lastUpdatedStr = sensorData?.last_updated
@@ -74,7 +74,7 @@ function DriverTemperatureContent() {
         const motionData = sensorData.motion_data || [];
         const shockCount = motionData.filter(m => m.max_accel > 0.5).length;
         const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
-        const isSafe = currentTempVal !== null && currentTempVal <= -18;
+        const isSafe = currentTempVal !== null && currentTempVal <= -18 && currentTempVal >= -20;
         updateSnapshot({
             currentPage: 'Temperature Page',
             trip: tripDetails,
@@ -83,7 +83,7 @@ function DriverTemperatureContent() {
                 qualityScore: 100 - (shockCount * 2),
                 tempCompliance: isSafe ? 100 : (currentTempVal === null ? 100 : 0),
                 shocks: motionData.filter(m => m.max_accel > 0.5),
-                cold: tempData.filter(t => Number(t.avg) < -22),
+                cold: tempData.filter(t => Number(t.avg) < -20),
                 hot: tempData.filter(t => Number(t.avg) > -18),
             }
         });
@@ -207,7 +207,7 @@ function DriverTemperatureContent() {
                                     </span>
                                     <span style={{ fontSize: '24px', fontWeight: 700, color: '#1c1c1e' }}>°C</span>
                                 </div>
-                                <div style={{ textAlign: 'center', fontSize: '10.5px', color: '#8e8e93', marginBottom: '18px' }}>Safe Range: −30°C – −18°C</div>
+                                <div style={{ textAlign: 'center', fontSize: '10.5px', color: '#8e8e93', marginBottom: '18px' }}>Safe Range: −20°C – −18°C</div>
 
                                 {/* 4 stat mini-cards */}
                                 <div className="dt-stats-grid">

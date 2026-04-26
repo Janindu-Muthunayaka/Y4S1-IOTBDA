@@ -6,7 +6,14 @@ export const useChatbot = () => {
     const context = useContext(ChatbotContext);
     if (context === undefined) {
         // Return a mock object to prevent destructuring errors if used outside provider
-        return { dashboardData: null, updateSnapshot: () => {} };
+        return { 
+            dashboardData: null, 
+            isOpen: false, 
+            setIsOpen: () => {}, 
+            toggleChat: () => {}, 
+            closeChat: () => {},
+            updateSnapshot: () => {} 
+        };
     }
     return context;
 };

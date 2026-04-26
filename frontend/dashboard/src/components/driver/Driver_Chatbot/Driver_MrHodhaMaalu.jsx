@@ -12,45 +12,7 @@ export default function MrHodhaMaalu() {
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [persona, setPersona] = useState(null);
-    const [apiKey, setApiKey] = useState('');
     const scrollRef = useRef(null);
-
-    // Fetch persona and API key on mount
-    useEffect(() => {
-        const loadPersona = async () => {
-            try {
-                const { data } = await axios.get(`${API_BASE}/api/chatbot/driver/persona`);
-                const content = data.content;
-                setPersona(content);
-
-                // Extract API Key robustly (Look for AIzaSy pattern)
-                const keyMatch = content.match(/AIzaSy[A-Za-z0-9_-]+/);
-                if (keyMatch) {
-                    setApiKey(keyMatch[0].trim());
-                }
-            } catch (err) {
-                console.error("Failed to load persona:", err);
-            }
-        };
-        loadPersona();
-    }, []);
-
-    // Reset messages and create pretext when opened
-    useEffect(() => {
-        if (isOpen) {
-            setMessages([{ role: 'bot', content: "Hi. I'm Mr. Hodha-Maalu, your Trip Assistant. How's the drive going?" }]);
-            if (dashboardData) {
-                createPretext(dashboardData);
-            }
-        }
-    }, [isOpen]);
-
-    // Scroll to bottom when messages change
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages]);
 
     const createPretext = useCallback(async (data) => {
         if (!data) return "No dashboard data available.";
@@ -105,57 +67,80 @@ export default function MrHodhaMaalu() {
     const handleSendMessage = async () => {
         if (!inputValue.trim() || isLoading) return;
 
-        if (!apiKey) {
-            setMessages(prev => [...prev, { role: 'user', content: inputValue.trim() }]);
-            setMessages(prev => [...prev, { role: 'bot', content: "API key missing in Driver_Persona.txt." }]);
-            setInputValue('');
-            return;
-        }
-
         const userMsg = inputValue.trim();
         setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setInputValue('');
         setIsLoading(true);
 
         try {
-            // Build the prompt for Gemini
+            // Read the latest live dashboard snapshot from the server
             const { data: pretextData } = await axios.get(`${API_BASE}/api/chatbot/driver/pretext`);
 
-            const systemPrompt = `${persona}\n\nCURRENT DASHBOARD SNAPSHOT:\n${pretextData.content}\n\nINSTRUCTION: Respond naturally. No markdown. Use snapshot for facts.`;
+            const systemPrompt = `${persona}\n\nCURRENT DASHBOARD SNAPSHOT:\n${pretextData.content}\n\nINSTRUCTION: Respond naturally. No markdown. Use snapshot for facts. If user says Hi, just greet back coolly.`;
 
-            // Format history for Gemini API (Content-based)
+            // Format chat history for OpenAI (sliding window of last 6 messages)
             const chatHistory = messages
                 .filter(m => m.content !== "Hi. I'm Mr. Hodha-Maalu, your Trip Assistant. How's the drive going?")
+                .slice(-6)
                 .map(m => ({
-                    role: m.role === 'bot' ? 'model' : 'user',
-                    parts: [{ text: m.content }]
+                    role: m.role === 'bot' ? 'assistant' : 'user',
+                    content: m.content
                 }));
 
-            const payload = {
-                contents: [
+            // Call our SECURE backend proxy
+            const { data } = await axios.post(`${API_BASE}/api/chatbot/driver/chat`, {
+                systemPrompt,
+                messages: [
                     ...chatHistory,
-                    { role: 'user', parts: [{ text: userMsg }] }
-                ],
-                system_instruction: { parts: [{ text: systemPrompt }] }
-            };
+                    { role: 'user', content: userMsg }
+                ]
+            });
 
-            // Call Gemini API
-            const response = await axios.post(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-                payload
-            );
-
-            if (response.data.candidates && response.data.candidates[0].content) {
-                const botResponse = response.data.candidates[0].content.parts[0].text;
-                setMessages(prev => [...prev, { role: 'bot', content: botResponse }]);
+            if (data.response) {
+                setMessages(prev => [...prev, { role: 'bot', content: data.response }]);
             }
         } catch (err) {
-            console.error('Chat error:', err);
-            setMessages(prev => [...prev, { role: 'bot', content: 'Connection error. Please try again.' }]);
+            const errorMsg = err.response?.data?.error || err.message;
+            console.error('Chat error:', errorMsg);
+            setMessages(prev => [...prev, { role: 'bot', content: `Connection error: ${errorMsg}` }]);
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Fetch persona on mount
+    useEffect(() => {
+        const loadPersona = async () => {
+            try {
+                const { data } = await axios.get(`${API_BASE}/api/chatbot/driver/persona`);
+                setPersona(data.content);
+            } catch (err) {
+                console.error("Failed to load persona:", err);
+            }
+        };
+        loadPersona();
+    }, []);
+
+    // Keep the backend pretext continuously updated as dashboardData changes
+    useEffect(() => {
+        if (dashboardData) {
+            createPretext(dashboardData);
+        }
+    }, [dashboardData, createPretext]);
+
+    // Initial greeting when opened
+    useEffect(() => {
+        if (isOpen && messages.length === 0) {
+            setMessages([{ role: 'bot', content: "Hi. I'm Mr. Hodha-Maalu, your Trip Assistant. How's the drive going?" }]);
+        }
+    }, [isOpen]);
+
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
 
     if (!isOpen) return null;
 

@@ -60,16 +60,15 @@ function DriverShocksContent() {
     const peakLabel = maxAccel === '--' ? '--' : Number(maxAccel) < 0.5 ? 'Low' : Number(maxAccel) < 1.0 ? 'Medium' : 'High';
     const peakColor = peakLabel === 'Low' ? '#30d158' : peakLabel === 'Medium' ? '#ffcc00' : '#ff3b30';
 
-    // Bar chart — last 8 motion readings, normalised to 0–80px
-    const barData = (() => {
-        const recent = motions.slice(-8);
-        const maxVal = Math.max(...recent.map(m => Number(m.max_accel)), 0.01);
-        return recent.map(m => ({
-            h: Math.max(10, Math.round((Number(m.max_accel) / maxVal) * 75)),
-            isWarn: m.max_accel > 0.5 && m.max_accel <= 1.0,
-            isDanger: m.max_accel > 1.0,
-        }));
-    })();
+    // History bars — last 60 motion readings (Filter to show only high-vibration)
+    const historyBars = motions.slice(-60).map(m => {
+        const val = Number(m.max_accel);
+        const isWarning = val > 0.5;
+        // Only show significant vibration (> 0.15G) 
+        // Increased height: scaled relative to 1.0G max for larger visual impact
+        const pct = val > 0.15 ? Math.min(100, (val / 1.0) * 100) : 0;
+        return { pct, isWarning, val };
+    });
 
     // Push live data to chatbot context
     useEffect(() => {
@@ -167,38 +166,53 @@ function DriverShocksContent() {
                                 </div>
                             </div>
 
-                            {/* ── Shock Trend Bar Chart ── */}
+                            {/* ── Shock Trend Chart (Enhanced with Peak Marker) ── */}
                             <div className="driver-card">
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#111' }}>Shock trend</div>
-                                    <div style={{ fontSize: '11px', color: '#aaa' }}>Updated just now</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1c1c1e', lineHeight: 1.4 }}>Shock<br />Trend (Live)</span>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '2px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30d158' }}></div>
+                                            <span style={{ fontSize: '9px', color: '#8e8e93' }}>Stable</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff3b30' }}></div>
+                                            <span style={{ fontSize: '9px', color: '#8e8e93' }}>Shock</span>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: '80px', padding: '0 2px' }}>
-                                    {barData.length > 0 ? barData.map((b, i) => (
-                                        <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', height: '100%' }}>
-                                            <div style={{
-                                                width: '100%',
-                                                height: `${b.h}px`,
-                                                background: b.isDanger ? '#ff3b30' : b.isWarn ? '#ffcc00' : '#30d158',
-                                                borderRadius: '5px 5px 3px 3px',
-                                                transition: 'height 0.4s ease'
-                                            }}></div>
-                                        </div>
-                                    )) : (
-                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#aaa', height: '100%' }}>
+                                <div style={{ position: 'relative', height: '110px' }}>
+                                    {/* 0.5G threshold line (Safety benchmark) */}
+                                    <div style={{ position: 'absolute', top: '42px', left: 0, right: 0, borderTop: '1.5px dashed rgba(255, 59, 48, 0.15)', zIndex: 1 }}></div>
+
+                                    {historyBars.length > 0 ? (
+                                        <>
+                                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '80px', padding: '0 2px', position: 'relative', zIndex: 2, marginBottom: '8px' }}>
+                                                {historyBars.map((bar, i) => (
+                                                    <div key={i} style={{ width: '3px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            height: `${bar.pct}%`,
+                                                            background: bar.isWarning 
+                                                                ? 'linear-gradient(to top, #ff9f0a, #ff3b30)' 
+                                                                : 'linear-gradient(to top, #30d158, #86d158)',
+                                                            borderRadius: '2px 2px 0 0',
+                                                            transition: 'height 0.4s ease'
+                                                        }}></div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 2px' }}>
+                                                <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 600 }}>LIVE</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div style={{ height: '88px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#aaa' }}>
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><polyline points="2 12 6 12 8 4 10 20 13 10 15 14 17 12 22 12" /></svg>
                                             <span style={{ fontSize: '10px' }}>No shock data yet</span>
                                         </div>
                                     )}
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', padding: '0 2px' }}>
-                                    {barData.length > 0
-                                        ? motions.slice(-barData.length).map((m, i) => (
-                                            <span key={i} style={{ fontSize: '10px', color: '#aaa' }}>{m.time || '--'}</span>
-                                        ))
-                                        : <span style={{ fontSize: '10px', color: '#ccc', width: '100%', textAlign: 'center' }}>--</span>
-                                    }
                                 </div>
                             </div>
 
