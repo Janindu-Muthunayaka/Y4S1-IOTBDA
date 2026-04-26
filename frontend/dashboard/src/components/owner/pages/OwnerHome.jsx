@@ -29,7 +29,7 @@ export function timeAgo(d) {
 }
 export function computeQuality(sensors) {
   if (!sensors) return 100;
-  
+
   // Use ML predicted score if available from the backend payload
   if (sensors.ml_quality !== undefined) {
     return Math.max(0, Math.min(100, Math.round(sensors.ml_quality)));
@@ -37,14 +37,14 @@ export function computeQuality(sensors) {
 
   const temps = sensors.temperature_data || [];
   const motions = sensors.motion_data || [];
-  
+
   // Borrowed logic from QA_Trip.jsx
   const tempViolations = temps.filter(t => Number(t.avg) > -18);
   const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
-  
+
   const majorShocks = motions.filter(m => m.max_accel > 0.5);
   const minorShocks = motions.filter(m => m.max_accel > 0.2 && m.max_accel <= 0.5);
-  
+
   const score = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5) - (minorShocks.length * 2)));
   return score;
 }
@@ -87,11 +87,11 @@ export function Gauge({ value = 68, size = 190 }) {
         {/* Green (Safe: 90-100%) */}
         <path d={arc(radius, 10, 35)} fill="none" stroke="#059669" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
         {/* Needle */}
-        <line 
-          x1={cx} y1={cy} 
-          x2={cx + radius - 14} y2={cy} 
-          stroke="#374151" strokeWidth={2.5} strokeLinecap="round" 
-          style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${cx}px ${cy}px`, transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)' }} 
+        <line
+          x1={cx} y1={cy}
+          x2={cx + radius - 14} y2={cy}
+          stroke="#374151" strokeWidth={2.5} strokeLinecap="round"
+          style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${cx}px ${cy}px`, transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
         />
         <circle cx={cx} cy={cy} r={6} fill="#374151" />
         <circle cx={cx} cy={cy} r={3} fill="#fff" />
@@ -142,13 +142,13 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
 
   const baseFilteredTrips = trips.filter(t => {
     if (truckFilter !== 'all' && t.truck_id !== truckFilter) return false;
-    
+
     // Check if trip is complete according to DB structure
     const isComplete = t.status === 'Complete' || t.status === 'COMPLETED';
-    
+
     if (statusFilter === 'ACTIVE' && isComplete) return false;
     if (statusFilter === 'COMPLETED' && !isComplete) return false;
-    
+
     return true;
   });
 
@@ -159,13 +159,13 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
     const shockEvents = motions.filter(m => m.max_accel > 0.5).length;
     const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
-    
+
     // Borrowed Alert Logic from QA Inspector
     const hasTempViolation = temps.some(t => Number(t.avg) > -18);
     const hasMajorShock = maxShock > 0.5;
 
     const quality = computeQuality(sensors);
-    
+
     // QA Logic: Temp violation is Critical, Major Shock is Warning
     let risk = 'safe';
     if (hasTempViolation) risk = 'crit';
@@ -176,7 +176,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
 
   // A trip is active if its status is NOT Complete/COMPLETED
   const activeFull = enriched.filter(t => t.status !== 'Complete' && t.status !== 'COMPLETED');
-  
+
   // QA-Aligned Alert Counts
   const critCount = enriched.filter(t => t.hasTempViolation).length;
   const warnCount = enriched.filter(t => t.hasMajorShock && !t.hasTempViolation).length;
@@ -214,7 +214,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     return `${h.toString().padStart(2, '0')}:${m}`;
   };
   const times = Object.keys(timeBuckets).sort((a, b) => parseTo24H(a).localeCompare(parseTo24H(b))).slice(-40);
-  
+
   // Clean up time labels for the chart (HH:MM)
   const chartLabels = times.map(t => {
     try {
@@ -353,8 +353,8 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
       {/* Filter bar */}
       <div className="owner-filterbar">
         <div className="owner-filter-chip">📅 {today}</div>
-        
-        <select 
+
+        <select
           className={`owner-filter-chip ${truckFilter !== 'all' ? 'owner-filter-chip--active' : ''}`}
           value={truckFilter}
           onChange={(e) => setTruckFilter(e.target.value)}
@@ -365,28 +365,28 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
         </select>
 
         <div className="owner-slider-filter">
-          <button 
+          <button
             className={`owner-slider-btn ${statusFilter === 'all' ? 'active' : ''}`}
             onClick={() => setStatusFilter('all')}
           >
-            📋 All Trips
+            All Trips
           </button>
-          <button 
+          <button
             className={`owner-slider-btn ${statusFilter === 'ACTIVE' ? 'active' : ''}`}
             onClick={() => setStatusFilter('ACTIVE')}
           >
-            🟢 Active
+            Active
           </button>
-          <button 
+          <button
             className={`owner-slider-btn ${statusFilter === 'COMPLETED' ? 'active' : ''}`}
             onClick={() => setStatusFilter('COMPLETED')}
           >
-            ⚪ Complete
+            Complete
           </button>
-          <div 
-            className="owner-slider-indicator" 
-            style={{ 
-              transform: `translateX(${statusFilter === 'all' ? '0' : statusFilter === 'ACTIVE' ? '100%' : '200%'})` 
+          <div
+            className="owner-slider-indicator"
+            style={{
+              transform: `translateX(${statusFilter === 'all' ? '0' : statusFilter === 'ACTIVE' ? '100%' : '200%'})`
             }}
           />
         </div>
@@ -423,19 +423,19 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
           <div style={{ position: 'relative', height: 270 }}>
             {/* Dynamic Critical zone overlay: top:0 to -18. In range [tChartMax, tChartMin] */}
             {tChartMax > -18 && (
-              <div style={{ 
-                position: 'absolute', 
-                top: 0, 
-                left: 0, 
-                right: 0, 
-                height: `${Math.max(0, Math.min(100, ((tChartMax - (-18)) / (tChartMax - tChartMin)) * 100))}%`, 
-                background: 'linear-gradient(180deg, rgba(220,38,38,0.1) 0%, rgba(220,38,38,0.02) 100%)', 
-                borderBottom: '1.5px dashed rgba(220,38,38,0.4)', 
-                zIndex: 1, 
-                pointerEvents: 'none', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'flex-end' 
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: `${Math.max(0, Math.min(100, ((tChartMax - (-18)) / (tChartMax - tChartMin)) * 100))}%`,
+                background: 'linear-gradient(180deg, rgba(220,38,38,0.1) 0%, rgba(220,38,38,0.02) 100%)',
+                borderBottom: '1.5px dashed rgba(220,38,38,0.4)',
+                zIndex: 1,
+                pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end'
               }}>
                 <span style={{ color: '#dc2626', fontSize: '0.67rem', fontWeight: 700, padding: '0.25rem 0.5rem', opacity: 0.8, alignSelf: 'flex-start' }}>CRITICAL ZONE (&gt;-18°C)</span>
               </div>
@@ -491,8 +491,8 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {((!liveData[trip.trip_id]?.ml_quality && !mlTimeout) || artificialLoading) ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                             <div className="qa-loading-spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
-                             <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Model...</span>
+                            <div className="qa-loading-spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Model...</span>
                           </div>
                         ) : (
                           <>
