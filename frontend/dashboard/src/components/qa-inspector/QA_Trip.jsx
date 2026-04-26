@@ -27,22 +27,43 @@ export default function QA_Trip() {
     const tempViolations = temps.filter(t => t.avg > -18);
     const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
     const majorShocks = motions.filter(m => m.max_accel > 0.5);
-    const qualityScore = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5)));
+    const minorShocks = motions.filter(m => m.max_accel > 0.2 && m.max_accel <= 0.5);
+    const qualityScore = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5) - (minorShocks.length * 2)));
     const isLowRisk = qualityScore > 80;
+
+    // KPI Colors
+    const qualityColor = qualityScore >= 80 ? '#22c55e' : qualityScore >= 60 ? '#f97316' : '#ef4444';
+    const qualityBg = qualityScore >= 80 ? '#f0fdf4' : qualityScore >= 60 ? '#fff7ed' : '#fef2f2';
+
+    const riskColor = isLowRisk ? '#22c55e' : '#f97316';
+    const riskBg = isLowRisk ? '#f0fdf4' : '#fff7ed';
 
     // Weight data
     const startWeight = trip.startWeight || trip.start_weight || trip.weight1 || null;
     const endWeight = trip.endWeight || trip.end_weight || trip.weight2 || null;
     const weightLoss = (startWeight && endWeight) ? startWeight - endWeight : null;
     const weightLossPct = (startWeight && weightLoss !== null) ? ((weightLoss / startWeight) * 100).toFixed(1) : null;
-    
+
     let weightColorClass = 'qt-weight-green';
     let weightIcon = '✅';
+    let weightHexColor = '#22c55e'; // Default Green
     if (weightLossPct !== null) {
         const pct = parseFloat(weightLossPct);
-        if (pct >= 5) { weightColorClass = 'qt-weight-red'; weightIcon = '❌'; }
-        else if (pct >= 3) { weightColorClass = 'qt-weight-orange'; weightIcon = '⚠️'; }
-        else if (pct > 0) { weightColorClass = 'qt-weight-yellow'; weightIcon = '⚠️'; }
+        if (pct >= 5) { 
+            weightColorClass = 'qt-weight-red'; 
+            weightIcon = '❌'; 
+            weightHexColor = '#ef4444'; // Red
+        }
+        else if (pct >= 3) { 
+            weightColorClass = 'qt-weight-orange'; 
+            weightIcon = '⚠️'; 
+            weightHexColor = '#f97316'; // Orange
+        }
+        else if (pct > 0) { 
+            weightColorClass = 'qt-weight-yellow'; 
+            weightIcon = '⚠️'; 
+            weightHexColor = '#eab308'; // Yellow/Gold
+        }
     }
 
     // Bar chart helpers
@@ -102,18 +123,18 @@ export default function QA_Trip() {
         const alertsList = [];
         if (tempViolations.length > 0) {
             const worst = tempViolations.reduce((a, b) => (a.avg > b.avg ? a : b));
-            alertsList.push({ type: 'critical', label: 'Critical', msg: `Temperature exceeded -18°C (${worst.avg?.toFixed(1)}°C) for ${tempViolations.length} interval(s)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
+            alertsList.push({ sev: 'crit', label: 'Critical', msg: `Temperature exceeded -18°C (${worst.avg?.toFixed(1)}°C) for ${tempViolations.length} interval(s)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
         }
         if (majorShocks.length > 0) {
             const worst = majorShocks.reduce((a, b) => (a.max_accel > b.max_accel ? a : b));
-            alertsList.push({ type: 'warning', label: 'High', msg: `High vibration detected (${worst.max_accel?.toFixed(2)}G peak)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
+            alertsList.push({ sev: 'warn', label: 'High', msg: `High vibration detected (${worst.max_accel?.toFixed(2)}G peak)`, time: worst.time || fmtTime(trip.timestamp), truck: trip.truck_id });
         }
-        const minorShocks = motions.filter(m => m.max_accel > 0.3 && m.max_accel <= 0.5);
-        if (minorShocks.length > 0) {
-            alertsList.push({ type: 'minor', label: 'Medium', msg: `Minor shock events logged (${minorShocks.length})`, time: minorShocks[0].time || fmtTime(trip.timestamp), truck: trip.truck_id });
+        const mShocks = motions.filter(m => m.max_accel > 0.3 && m.max_accel <= 0.5);
+        if (mShocks.length > 0) {
+            alertsList.push({ sev: 'minor', label: 'Medium', msg: `Minor shock events logged (${mShocks.length})`, time: mShocks[0].time || fmtTime(trip.timestamp), truck: trip.truck_id });
         }
         if (alertsList.length === 0) {
-            alertsList.push({ type: 'info', label: 'Info', msg: 'All parameters within normal range', time: fmtTime(trip.timestamp), truck: 'System' });
+            alertsList.push({ sev: 'info', label: 'Info', msg: 'All parameters within normal range', time: fmtTime(trip.timestamp), truck: 'System' });
         }
         return alertsList;
     };
@@ -162,13 +183,21 @@ export default function QA_Trip() {
                         <button className="qt-back-btn" onClick={() => navigate('/qa/dash')}>← Back</button>
                         <div className="qt-header-sep"></div>
                         <div className="qt-header-field">
-                            <span className="qt-header-label">Truck ID:</span>
-                            <span className="qt-header-value">{trip.truck_id || '--'}</span>
-                        </div>
-                        <div className="qt-header-sep"></div>
-                        <div className="qt-header-field">
                             <span className="qt-header-label">Trip ID:</span>
-                            <span className="qt-header-value qt-link">{trip.trip_id || id}</span>
+                            <span className="qt-header-value qt-link" style={{ fontWeight: 600 }}>
+                                {(() => {
+                                    const tripIdStr = trip.trip_id || id || '';
+                                    const parts = tripIdStr.split('-');
+                                    return parts.map((part, index) => (
+                                        <React.Fragment key={index}>
+                                            <span style={{ color: index === 1 ? '#3B82F6' : '#111827' }}>
+                                                {part}
+                                            </span>
+                                            {index < parts.length - 1 && <span style={{ color: '#111827' }}>-</span>}
+                                        </React.Fragment>
+                                    ));
+                                })()}
+                            </span>
                         </div>
                         <div className="qt-header-field">
                             <span className="qt-header-label">Direction:</span>
@@ -183,52 +212,65 @@ export default function QA_Trip() {
                         <div className="qt-header-field">
                             <span className="qt-header-label">Trip End:</span>
                             <span className="qt-header-value">{
-                                (trip.status || '').toUpperCase() === 'ACTIVE' || !trip.status 
-                                ? 'In Transit' 
-                                : (trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at ? fmtTime(trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at) : '--:--')
+                                (trip.status || '').toUpperCase() === 'ACTIVE' || !trip.status
+                                    ? 'In Transit'
+                                    : (trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at ? fmtTime(trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at) : '--:--')
                             }</span>
                         </div>
                     </div>
                     <div className="qt-header-right">
-                        <div className="qt-dropdown">
-                            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            Last 24 Hours
-                            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-                        </div>
                     </div>
                 </header>
 
                 {/* KPI BANNER */}
                 <div className="qt-kpi-banner">
-                    <div className="qt-kpi-card qt-kpi-good">
-                        <div className="qt-kpi-label">Quality Score</div>
-                        <div className={`qt-kpi-value ${qualityScore >= 80 ? 'qt-green' : 'qt-orange'}`}>{qualityScore}</div>
-                        <div className="qt-kpi-sub qt-green">
-                            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
-                            {qualityScore >= 80 ? 'All indicators good' : 'Needs attention'}
+                    <div className="qt-kpi-card" style={{ 
+                        minHeight: '116px', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '1.2rem',
+                        background: qualityBg, borderLeft: `4px solid ${qualityColor}`, borderColor: qualityColor 
+                    }}>
+                        <div className="qt-kpi-label" style={{ fontSize: '0.9rem', marginBottom: '6px' }}>Quality Score</div>
+                        <div className="qt-kpi-value" style={{ fontSize: '2.8rem', fontWeight: 700, margin: '2px 0', color: qualityColor }}>{qualityScore}</div>
+                        <div className="qt-kpi-sub" style={{ fontSize: '0.8rem', marginTop: '2px', color: qualityColor }}>
+                            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ marginRight: '4px' }}><polyline points="18 15 12 9 6 15" /></svg>
+                            {qualityScore >= 80 ? 'All indicators good' : qualityScore >= 60 ? 'Needs attention' : 'Critical issue'}
                         </div>
                     </div>
-                    <div className="qt-kpi-card qt-kpi-low">
-                        <div className="qt-kpi-label">Risk Status</div>
-                        <div style={{ margin: '4px 0' }}>
-                            <span className={`qt-badge ${isLowRisk ? 'qt-badge-green' : 'qt-badge-orange'}`}>
-                                {isLowRisk ? '✓ Low Risk' : '⚠ Elevated'}
-                            </span>
+
+                    {/* 2. Risk Status */}
+                    <div className="qt-kpi-card" style={{ 
+                        minHeight: '116px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.2rem', alignItems: 'center',
+                        background: riskBg, borderLeft: `4px solid ${riskColor}`, borderColor: riskColor
+                    }}>
+                        <div className="qt-kpi-label" style={{ fontSize: '0.9rem', alignSelf: 'flex-start', width: '100%' }}>Risk Status</div>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '6px 0', width: '100%' }}>
+                            <svg width="112" height="56" viewBox="0 0 100 50" style={{ overflow: 'visible' }}>
+                                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e5e7eb" strokeWidth="12" strokeLinecap="round" />
+                                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke={riskColor} strokeWidth="12" strokeLinecap="round" strokeDasharray={isLowRisk ? '35 125.6' : '100 125.6'} />
+                                <text x="50" y="45" textAnchor="middle" fontSize="14" fontWeight="bold" fill={riskColor}>{isLowRisk ? 'Low' : 'Elevated'}</text>
+                            </svg>
                         </div>
-                        <div className="qt-kpi-sub qt-gray">{isLowRisk ? 'All parameters normal' : `${tempViolations.length} temp + ${majorShocks.length} shock`}</div>
-                    </div>
-                    <div className="qt-kpi-card qt-kpi-info">
-                        <div className="qt-kpi-label">Temp Compliance</div>
-                        <div className="qt-kpi-value qt-blue">{tempCompliance}%</div>
-                        <div className="qt-kpi-sub qt-gray">Within safe range (≤ -18°C)</div>
-                    </div>
-                    <div className="qt-kpi-card qt-kpi-warn">
-                        <div className="qt-kpi-label">Shock Events</div>
-                        <div className="qt-kpi-value qt-orange">{majorShocks.length}</div>
-                        <div className="qt-kpi-sub qt-orange">
-                            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            {majorShocks.length > 0 ? 'Events logged' : 'No events'}
+                        <div className="qt-kpi-sub" style={{ fontSize: '0.8rem', alignSelf: 'flex-start', width: '100%', color: riskColor }}>
+                            {isLowRisk ? 'All parameters normal' : `${tempViolations.length} temp + ${majorShocks.length} shock`}
                         </div>
+                    </div>
+
+                    {/* Separator */}
+                    <div className="qt-kpi-sep" style={{ width: '1px', height: '70px', background: '#E2E8F0', margin: '0 4px' }}></div>
+
+                    <div className="qt-kpi-card qt-kpi-warn" style={{ minHeight: '116px', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '1.2rem' }}>
+                        <div className="qt-kpi-label" style={{ fontSize: '0.9rem', marginBottom: '6px' }}>Shock Events</div>
+                        <div className="qt-kpi-value qt-orange" style={{ fontSize: '2.8rem', fontWeight: 700, margin: '2px 0' }}>{majorShocks.length + minorShocks.length}</div>
+                        <div className="qt-kpi-sub qt-orange" style={{ fontSize: '0.8rem', marginTop: '2px' }}>
+                            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ marginRight: '4px' }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                            {majorShocks.length} Major + {minorShocks.length} Minor
+                        </div>
+                    </div>
+
+                    {/* 4. Temp Compliance */}
+                    <div className="qt-kpi-card qt-kpi-info" style={{ minHeight: '116px', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '1.2rem' }}>
+                        <div className="qt-kpi-label" style={{ fontSize: '0.9rem', marginBottom: '6px' }}>Temp Compliance</div>
+                        <div className="qt-kpi-value qt-blue" style={{ fontSize: '2.8rem', fontWeight: 700, margin: '2px 0' }}>{tempCompliance}%</div>
+                        <div className="qt-kpi-sub qt-gray" style={{ fontSize: '0.8rem', marginTop: '2px' }}>Within safe range (≤ -18°C)</div>
                     </div>
                 </div>
 
@@ -239,7 +281,12 @@ export default function QA_Trip() {
                         <div className="qt-col-left">
                             {/* Temperature Trend */}
                             <div className="qt-card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/qa/graphs/${id}`)} title="Click for detailed charts">
-                                <div className="qt-card-title">📈 Temperature Trend <span style={{ fontSize: '10px', color: '#6C5CE7', fontWeight: 400 }}>→ View Details</span></div>
+                                <div className="qt-card-title">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '10px', verticalAlign: 'middle' }}>
+                                        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                                    </svg>
+                                    Temperature Trend <span style={{ fontSize: '10px', color: '#6C5CE7', fontWeight: 400 }}>→ View Details</span>
+                                </div>
                                 <div className="qt-chart-legend">
                                     <div className="qt-legend-item"><div className="qt-legend-dot" style={{ background: '#93C5FD' }}></div> Normal (°C)</div>
                                     <div className="qt-legend-item"><div className="qt-legend-dot" style={{ background: '#F43F5E' }}></div> Spike / Alert</div>
@@ -255,7 +302,7 @@ export default function QA_Trip() {
                                             const max = Math.max(...vals);
                                             const min = Math.min(...vals);
                                             const range = max - min || 1;
-                                            
+
                                             return sampled.map((t, i) => {
                                                 const val = t.avg || 0;
                                                 // Higher temperature = Taller bar
@@ -275,34 +322,55 @@ export default function QA_Trip() {
 
                             {/* Weight Comparison */}
                             <div className="qt-card">
-                                <div className="qt-card-title">⚖️ Weight Comparison</div>
+                                <div className="qt-card-title">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '10px', verticalAlign: 'middle' }}>
+                                        <path d="M6 20h12l-2-10H8z" />
+                                        <path d="M9 10V8a3 3 0 0 1 6 0v2" />
+                                        <rect x="8" y="16" width="8" height="2" />
+                                    </svg>
+                                    Weight Comparison
+                                </div>
                                 <div style={{ padding: '26px 10px 8px' }}>
-                                    <div className="qt-weight-track">
-                                        <div className="qt-weight-arrow"></div>
-                                        <div className="qt-weight-line qt-weight-loading">
-                                            <div className="qt-weight-line-bar"></div>
-                                            <div className="qt-weight-line-label">Loading</div>
+                                    <div className="qt-weight-track" style={{ background: '#F8FAFC' }}>
+                                        <div className="qt-weight-arrow" style={{ background: `linear-gradient(90deg, #22c55e, ${weightHexColor})`, width: '44%' }}>
+                                            <div style={{ position: 'absolute', right: '-5px', top: '-4px', width: 0, height: 0, borderLeft: `7px solid ${weightHexColor}`, borderTop: '4px solid transparent', borderBottom: '4px solid transparent' }}></div>
                                         </div>
-                                        <div className="qt-weight-line qt-weight-arrival">
-                                            <div className="qt-weight-line-bar"></div>
-                                            <div className="qt-weight-line-label">Arrival</div>
+                                        <div className="qt-weight-line qt-weight-loading" style={{ left: '28%' }}>
+                                            <div className="qt-weight-line-bar" style={{ background: '#22c55e' }}></div>
+                                            <div className="qt-weight-line-label" style={{ color: '#22c55e' }}>Loading</div>
+                                        </div>
+                                        <div className="qt-weight-line qt-weight-arrival" style={{ left: '72%' }}>
+                                            <div className="qt-weight-line-bar" style={{ background: weightHexColor }}></div>
+                                            <div className="qt-weight-line-label" style={{ color: weightHexColor }}>Arrival</div>
                                         </div>
                                     </div>
                                     <div className="qt-weight-values">
                                         <div>
-                                            <span className="qt-weight-val qt-weight-load">{startWeight ? `${startWeight} kg` : '--'}</span>
+                                            <span className="qt-weight-val" style={{ color: '#22c55e', fontSize: '11px', fontWeight: 600 }}>{startWeight ? `${startWeight} kg` : '--'}</span>
                                             <span className="qt-weight-val-label">At loading dock</span>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
-                                            <span className="qt-weight-val qt-weight-arr">{endWeight ? `${endWeight} kg` : '--'}</span>
+                                            <span className="qt-weight-val" style={{ color: weightHexColor, fontSize: '11px', fontWeight: 600 }}>{endWeight ? `${endWeight} kg` : '--'}</span>
                                             <span className="qt-weight-val-label">At arrival</span>
                                         </div>
                                     </div>
                                 </div>
                                 {startWeight && endWeight && (
-                                    <div className="qt-plain-summary" style={{ borderLeft: `4px solid ${weightColorClass === 'qt-weight-red' ? '#ef4444' : weightColorClass === 'qt-weight-orange' ? '#f97316' : weightColorClass === 'qt-weight-yellow' ? '#eab308' : '#22c55e'}` }}>
-                                        <span className="qt-ps-icon">{weightIcon}</span>
-                                        <span>Cargo lost <strong style={{ color: weightColorClass === 'qt-weight-red' ? '#ef4444' : weightColorClass === 'qt-weight-orange' ? '#f97316' : weightColorClass === 'qt-weight-yellow' ? '#eab308' : 'inherit' }}>{weightLoss} kg ({weightLossPct}%)</strong> in transit — {(weightLossPct && parseFloat(weightLossPct) <= 2) ? 'within acceptable threshold' : 'exceeds acceptable threshold'}.</span>
+                                    <div className="qt-plain-summary" style={{ 
+                                        background: '#F5F3FF', 
+                                        border: '1px solid #DDD6FE', 
+                                        borderLeft: `4px solid ${weightHexColor}`,
+                                        color: '#4B3F94',
+                                        padding: '10px 12px',
+                                        borderRadius: '8px',
+                                        fontSize: '11px',
+                                        marginTop: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}>
+                                        <span className="qt-ps-icon" style={{ fontSize: '16px' }}>{weightIcon}</span>
+                                        <span>Cargo lost <strong style={{ color: weightHexColor, fontWeight: 700 }}>{weightLoss.toFixed(2)} kg ({weightLossPct}%)</strong> in transit — {(weightLossPct && parseFloat(weightLossPct) <= 2) ? 'within acceptable threshold' : 'exceeds acceptable threshold'}.</span>
                                     </div>
                                 )}
                             </div>
@@ -312,10 +380,15 @@ export default function QA_Trip() {
                         <div className="qt-col-right">
                             {/* Shock & Movement */}
                             <div className="qt-card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/qa/graphs/${id}`)} title="Click for detailed charts">
-                                <div className="qt-card-title">💥 Shock &amp; Movement <span style={{ fontSize: '10px', color: '#6C5CE7', fontWeight: 400 }}>→ View Details</span></div>
+                                <div className="qt-card-title">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '10px', verticalAlign: 'middle' }}>
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                                    </svg>
+                                    Shock &amp; Movement <span style={{ fontSize: '10px', color: '#6C5CE7', fontWeight: 400 }}>→ View Details</span>
+                                </div>
                                 <div className="qt-chart-legend">
-                                    <div className="qt-legend-item"><div className="qt-legend-dot" style={{ background: '#CA8A04' }}></div> G-force (g)</div>
-                                    <div className="qt-legend-item"><div className="qt-legend-dot" style={{ background: '#FCD34D' }}></div> Low intensity</div>
+                                    <div className="qt-legend-item"><div className="qt-legend-dot" style={{ background: '#CA8A04' }}></div> Shocks</div>
+                                    <div className="qt-legend-item"><div className="qt-legend-dot" style={{ background: '#FCD34D' }}></div> Vibrations</div>
                                 </div>
                                 <div className="qt-chart-wrap">
                                     <div className="qt-y-unit">g</div>
@@ -323,7 +396,12 @@ export default function QA_Trip() {
                                         {(() => {
                                             if (motions.length === 0) return <div className="qt-no-data">No motion data</div>;
                                             const step = Math.ceil(motions.length / 64);
-                                            const sampled = motions.filter((_, i) => i % step === 0).slice(0, 64);
+                                            const sampled = [];
+                                            for (let i = 0; i < motions.length; i += step) {
+                                                const chunk = motions.slice(i, i + step);
+                                                const maxVal = Math.max(...chunk.map(m => m.max_accel || 0));
+                                                sampled.push({ ...chunk[0], max_accel: maxVal });
+                                            }
                                             const vals = sampled.map(m => m.max_accel || 0);
                                             const max = Math.max(...vals);
                                             const min = Math.min(...vals);
@@ -331,7 +409,6 @@ export default function QA_Trip() {
 
                                             return sampled.map((m, i) => {
                                                 const val = m.max_accel || 0;
-                                                // Relative scaling to fill 10% to 95% of height
                                                 const pct = ((val - min) / range) * 85 + 10;
                                                 const isHigh = val > 0.5;
                                                 return (
@@ -348,7 +425,13 @@ export default function QA_Trip() {
 
                             {/* Trip Timeline */}
                             <div className="qt-card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/qa/timeline/${id}`)} title="Click for full timeline">
-                                <div className="qt-card-title">🗺️ Trip Timeline &amp; Events <span style={{ fontSize: '10px', color: '#6C5CE7', fontWeight: 400 }}>→ View Full Timeline</span></div>
+                                <div className="qt-card-title">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '10px', verticalAlign: 'middle' }}>
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                    Trip Timeline &amp; Events <span style={{ fontSize: '10px', color: '#6C5CE7', fontWeight: 400 }}>→ View Full Timeline</span>
+                                </div>
                                 <div className="qt-timeline-row">
                                     <div className="qt-timeline-line"></div>
                                     {timeline.map((ev, i) => (
@@ -385,7 +468,14 @@ export default function QA_Trip() {
                             <div className={`qt-alert-item qt-asev-${alert.sev}`} key={i} style={{ border: `1px solid ${alertBorder}`, borderRadius: '8px', marginBottom: '8px' }}>
                                 <div className={`qt-alert-dot qt-adot-${alert.sev}`}></div>
                                 <div className="qt-alert-body">
-                                    <span className={`qt-alert-sev-label qt-asl-${alert.sev}`}>{alert.label}</span>
+                                    <span className="qt-alert-sev-label" style={{ 
+                                        color: alert.sev === 'crit' ? '#ef4444' : alert.sev === 'warn' ? '#f97316' : alert.sev === 'minor' ? '#eab308' : '#64748b',
+                                        fontWeight: 800,
+                                        fontSize: '10px',
+                                        letterSpacing: '0.05em'
+                                    }}>
+                                        {alert.label}
+                                    </span>
                                     <div className="qt-alert-msg">{alert.msg}</div>
                                     <div className="qt-alert-meta"><span>{alert.time}</span><span>·</span><span>{alert.truck}</span></div>
                                 </div>
