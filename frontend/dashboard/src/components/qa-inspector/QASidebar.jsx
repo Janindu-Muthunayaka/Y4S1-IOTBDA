@@ -76,6 +76,15 @@ const QASidebar = ({ activeTab, tripId, alerts = [] }) => {
                     <span className="qa-nav-item__icon">⚙️</span>
                     Settings
                 </div>
+
+                <div className="qa-nav-section" style={{ marginTop: '1rem' }}>Navigation</div>
+                <div 
+                    className="qa-nav-item" 
+                    onClick={() => navigate('/')}
+                >
+                    <span className="qa-nav-item__icon">←</span>
+                    Back to Hub
+                </div>
             </nav>
 
             <div className="qa-sidebar__footer">

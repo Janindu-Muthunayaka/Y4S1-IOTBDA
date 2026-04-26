@@ -11,7 +11,11 @@ const API_BASE = 'http://localhost:3001';
 function DriverShocksContent() {
     const navigate = useNavigate();
     const [trips, setTrips] = useState([]);
-    const [selectedTripId, setSelectedTripId] = useState('');
+    const [selectedTripId, setSelectedTripId] = useState(localStorage.getItem('driverSelectedTripId') || '');
+
+    useEffect(() => {
+        if (selectedTripId) localStorage.setItem('driverSelectedTripId', selectedTripId);
+    }, [selectedTripId]);
     const [sensorData, setSensorData] = useState(null);
     const [tripDetails, setTripDetails] = useState(null);
     const { updateSnapshot } = useChatbot();

@@ -11,10 +11,15 @@ const API_BASE = 'http://localhost:3001';
 function DriverNotificationsContent() {
     const navigate = useNavigate();
     const [trips, setTrips] = useState([]);
-    const [selectedTripId, setSelectedTripId] = useState('');
+    const [selectedTripId, setSelectedTripId] = useState(localStorage.getItem('driverSelectedTripId') || '');
+
+    useEffect(() => {
+        if (selectedTripId) localStorage.setItem('driverSelectedTripId', selectedTripId);
+    }, [selectedTripId]);
     const [sensorData, setSensorData] = useState(null);
     const [tripDetails, setTripDetails] = useState(null);
     const [lastUpdate, setLastUpdate] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
     const { updateSnapshot } = useChatbot();
 
     // Fetch trips
@@ -44,9 +49,14 @@ function DriverNotificationsContent() {
                     setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
                     setTripDetails(data.trip || null);
                     setLastUpdate(Date.now());
+                    setIsLoading(false);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e);
+                if (alive) setIsLoading(false);
+            }
         };
+        setIsLoading(true);
         fetch();
         const id = setInterval(fetch, 3000);
         return () => { alive = false; clearInterval(id); };
@@ -114,6 +124,7 @@ function DriverNotificationsContent() {
         if (!tripDetails || !sensorData) return;
         const tempData = sensorData.temperature_data || [];
         const motionData = sensorData.motion_data || [];
+        const shockEvts = motionData.filter(m => m.max_accel > 0.5);
         const currentTempVal = tempData.length > 0 ? Number(tempData[tempData.length - 1].avg) : null;
         const isSafe = currentTempVal !== null && currentTempVal <= -18;
         updateSnapshot({
@@ -121,9 +132,9 @@ function DriverNotificationsContent() {
             trip: tripDetails,
             sensorData,
             kpis: {
-                qualityScore: 100 - (shockEvents.length * 2),
+                qualityScore: 100 - (shockEvts.length * 2),
                 tempCompliance: isSafe ? 100 : (currentTempVal === null ? 100 : 0),
-                shocks: motionData.filter(m => m.max_accel > 0.5),
+                shocks: shockEvts,
                 cold: tempData.filter(t => Number(t.avg) < -22),
                 hot: tempData.filter(t => Number(t.avg) > -18),
             }
@@ -178,115 +189,125 @@ function DriverNotificationsContent() {
                                 <div className="driver-header-title">Notifications</div>
                             </div>
 
-                            {/* ── Header card ── */}
-                            <div className="driver-card" style={{ marginBottom: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,#6c63ff,#4a4aff)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#fff" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="#fff" /></svg>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#111', lineHeight: 1.2 }}>Alerts &amp;<br />Notifications</div>
-                                            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', lineHeight: 1.4 }}>Realtime warnings for safe cargo monitoring</div>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
-                                        <div style={{ display: 'flex', gap: '6px' }}>
-                                            <div className="dn-icon-btn">
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l-6-6 6-6" stroke="#888" strokeWidth="2.5" strokeLinecap="round" /></svg>
-                                            </div>
-                                            <div className="dn-icon-btn">
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><line x1="4" y1="6" x2="20" y2="6" stroke="#888" strokeWidth="2" strokeLinecap="round" /><line x1="4" y1="12" x2="20" y2="12" stroke="#888" strokeWidth="2" strokeLinecap="round" /><line x1="4" y1="18" x2="14" y2="18" stroke="#888" strokeWidth="2" strokeLinecap="round" /></svg>
-                                            </div>
-                                        </div>
-                                        {criticalCount > 0 ? (
-                                            <div className="dn-critical-pill">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#fff" /><line x1="12" y1="9" x2="12" y2="13" stroke="#ff3b30" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="17" r="1" fill="#ff3b30" /></svg>
-                                                <span>{criticalCount} critical now</span>
-                                            </div>
-                                        ) : (
-                                            <div className="dn-ok-pill">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.4" /><path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>
-                                                <span>All clear</span>
-                                            </div>
-                                        )}
-                                    </div>
+                            {isLoading ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '1rem' }}>
+                                    <div style={{ width: 40, height: 40, borderWidth: 3, borderStyle: 'solid', borderTopColor: '#6c63ff', borderRightColor: '#6c63ff', borderBottomColor: '#e5e7eb', borderLeftColor: '#e5e7eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                                    <div style={{ color: '#9ca3af', fontSize: '0.875rem', fontWeight: 600 }}>Loading notifications…</div>
                                 </div>
-                            </div>
-
-                            {/* ── Stats card ── */}
-                            <div className="driver-card" style={{ marginBottom: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#111', lineHeight: 1.2, letterSpacing: '-0.3px' }}>
-                                            {criticalCount > 0 ? 'Critical alerts\nfirst' : 'All systems\nnormal'}
-                                        </div>
-                                        <div style={{ fontSize: '11px', color: '#aaa', marginTop: '6px', lineHeight: 1.5 }}>
-                                            {criticalCount > 0
-                                                ? 'Cargo conditions need attention. Updates refresh in realtime.'
-                                                : 'Temperature, shock, and cargo all within safe parameters.'}
-                                        </div>
-                                    </div>
-                                    <div className={`dn-priority-pill ${criticalCount > 0 ? 'critical' : 'ok'}`}>
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.3" /><path d="M12 8v5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="17" r="1.2" fill="#fff" /></svg>
-                                        <span>{criticalCount > 0 ? 'Priority' : 'Normal'}</span>
-                                    </div>
-                                </div>
-
-                                <div className="dn-stats-grid">
-                                    <div className="dn-stat-box">
-                                        <div className="dn-stat-label">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#ff3b30" strokeWidth="2" /><path d="M12 8v4m0 4h.01" stroke="#ff3b30" strokeWidth="2" strokeLinecap="round" /></svg>
-                                            <span>Active critical</span>
-                                        </div>
-                                        <div className="dn-stat-value">{criticalCount}</div>
-                                    </div>
-                                    <div className="dn-stat-box">
-                                        <div className="dn-stat-label">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#aaa" strokeWidth="2" /><polyline points="12,6 12,12 16,14" stroke="#aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                                            <span>Last update</span>
-                                        </div>
-                                        <div className="dn-stat-value">{lastUpdate > 0 ? `${secondsSinceUpdate}s` : '--'}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* ── Live Alert Feed ── */}
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', padding: '0 2px' }}>
-                                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#111' }}>Live alert feed</div>
-                                    <div style={{ fontSize: '11px', color: '#aaa' }}>{alerts.length} alert{alerts.length !== 1 ? 's' : ''} visible</div>
-                                </div>
-
-                                {alerts.map((alert, i) => (
-                                    <div key={i} className="dn-alert-card" style={{ borderLeftColor: alert.borderColor, marginBottom: i < alerts.length - 1 ? '10px' : '20px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                            <div className="dn-alert-icon" style={{ background: iconBg[alert.type] || '#f5f6fa' }}>
-                                                <AlertIcon type={alert.icon} />
-                                            </div>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
-                                                        {alert.title}
-                                                    </div>
-                                                    <div style={{ fontSize: '11px', color: '#aaa', flexShrink: 0 }}>{alert.time}</div>
+                            ) : (
+                                <>
+                                    {/* ── Header card ── */}
+                                    <div className="driver-card" style={{ marginBottom: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,#6c63ff,#4a4aff)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#fff" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="#fff" /></svg>
                                                 </div>
-                                                <div style={{ fontSize: '11px', color: '#555', marginTop: '4px', lineHeight: 1.5 }}>{alert.desc}</div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-                                                    <div style={{ background: alert.tagColor, borderRadius: '6px', padding: '3px 8px' }}>
-                                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff' }}>{alert.tag}</span>
-                                                    </div>
-                                                    <div style={{ background: '#f0f0f0', borderRadius: '6px', padding: '3px 8px' }}>
-                                                        <span style={{ fontSize: '10px', color: '#666', fontWeight: 600 }}>
-                                                            Trip #{selectedTripId?.slice(-8) || '--'}
-                                                        </span>
-                                                    </div>
+                                                <div>
+                                                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#111', lineHeight: 1.2 }}>Alerts &amp;<br />Notifications</div>
+                                                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', lineHeight: 1.4 }}>Realtime warnings for safe cargo monitoring</div>
                                                 </div>
                                             </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <div className="dn-icon-btn">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l-6-6 6-6" stroke="#888" strokeWidth="2.5" strokeLinecap="round" /></svg>
+                                                    </div>
+                                                    <div className="dn-icon-btn">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><line x1="4" y1="6" x2="20" y2="6" stroke="#888" strokeWidth="2" strokeLinecap="round" /><line x1="4" y1="12" x2="20" y2="12" stroke="#888" strokeWidth="2" strokeLinecap="round" /><line x1="4" y1="18" x2="14" y2="18" stroke="#888" strokeWidth="2" strokeLinecap="round" /></svg>
+                                                    </div>
+                                                </div>
+                                                {criticalCount > 0 ? (
+                                                    <div className="dn-critical-pill">
+                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#fff" /><line x1="12" y1="9" x2="12" y2="13" stroke="#ff3b30" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="17" r="1" fill="#ff3b30" /></svg>
+                                                        <span>{criticalCount} critical now</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="dn-ok-pill">
+                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.4" /><path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>
+                                                        <span>All clear</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    {/* ── Stats card ── */}
+                                    <div className="driver-card" style={{ marginBottom: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: '16px', fontWeight: 800, color: '#111', lineHeight: 1.2, letterSpacing: '-0.3px' }}>
+                                                    {criticalCount > 0 ? 'Critical alerts\nfirst' : 'All systems\nnormal'}
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: '#aaa', marginTop: '6px', lineHeight: 1.5 }}>
+                                                    {criticalCount > 0
+                                                        ? 'Cargo conditions need attention. Updates refresh in realtime.'
+                                                        : 'Temperature, shock, and cargo all within safe parameters.'}
+                                                </div>
+                                            </div>
+                                            <div className={`dn-priority-pill ${criticalCount > 0 ? 'critical' : 'ok'}`}>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.3" /><path d="M12 8v5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="17" r="1.2" fill="#fff" /></svg>
+                                                <span>{criticalCount > 0 ? 'Priority' : 'Normal'}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="dn-stats-grid">
+                                            <div className="dn-stat-box">
+                                                <div className="dn-stat-label">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#ff3b30" strokeWidth="2" /><path d="M12 8v4m0 4h.01" stroke="#ff3b30" strokeWidth="2" strokeLinecap="round" /></svg>
+                                                    <span>Active critical</span>
+                                                </div>
+                                                <div className="dn-stat-value">{criticalCount}</div>
+                                            </div>
+                                            <div className="dn-stat-box">
+                                                <div className="dn-stat-label">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#aaa" strokeWidth="2" /><polyline points="12,6 12,12 16,14" stroke="#aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                                    <span>Last update</span>
+                                                </div>
+                                                <div className="dn-stat-value">{lastUpdate > 0 ? `${secondsSinceUpdate}s` : '--'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Live Alert Feed ── */}
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', padding: '0 2px' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#111' }}>Live alert feed</div>
+                                            <div style={{ fontSize: '11px', color: '#aaa' }}>{alerts.length} alert{alerts.length !== 1 ? 's' : ''} visible</div>
+                                        </div>
+
+                                        {alerts.map((alert, i) => (
+                                            <div key={i} className="dn-alert-card" style={{ borderLeftColor: alert.borderColor, marginBottom: i < alerts.length - 1 ? '10px' : '20px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                    <div className="dn-alert-icon" style={{ background: iconBg[alert.type] || '#f5f6fa' }}>
+                                                        <AlertIcon type={alert.icon} />
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
+                                                                {alert.title}
+                                                            </div>
+                                                            <div style={{ fontSize: '11px', color: '#aaa', flexShrink: 0 }}>{alert.time}</div>
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', color: '#555', marginTop: '4px', lineHeight: 1.5 }}>{alert.desc}</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                                            <div style={{ background: alert.tagColor, borderRadius: '6px', padding: '3px 8px' }}>
+                                                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff' }}>{alert.tag}</span>
+                                                            </div>
+                                                            <div style={{ background: '#f0f0f0', borderRadius: '6px', padding: '3px 8px' }}>
+                                                                <span style={{ fontSize: '10px', color: '#666', fontWeight: 600 }}>
+                                                                    Trip #{selectedTripId?.slice(-8) || '--'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
 
                         </div>
                         {/* END MAIN CONTENT */}

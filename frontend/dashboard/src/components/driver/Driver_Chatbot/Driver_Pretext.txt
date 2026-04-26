@@ -1,7 +1,9 @@
 DASHBOARD SNAPSHOT CONTENT:
-Currently Viewing: Shocks Page
-Trip: TRIP-4021C561-1777122372378 (Complete)
+Currently Viewing: Notifications Page
+Trip: TRIP-C3809540-1777135426407 (Complete)
 
---- SHOCK ANALYTICS ---
-Current Status: ALERT
-Total Events: 2
+--- TRIP OVERVIEW ---
+Route: Supplier → Warehouse
+Cargo: Secure (Exp: 114.239 kg, Cur: 114.300 kg)
+Temp: -17.1°C (0% Compliance)
+Shocks: ALERT (1 events)

@@ -129,7 +129,10 @@ function SharedLayoutContent() {
 
         {/* Navigation section */}
         <div style={{ padding: '14px 14px 4px', color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginTop: 12 }}>Navigation</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', color: 'rgba(255,255,255,0.82)', fontSize: 12, cursor: 'pointer' }}>
+        <div 
+          onClick={() => navigate('/')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', color: 'rgba(255,255,255,0.82)', fontSize: 12, cursor: 'pointer' }}
+        >
           <BackIcon /> Back to Hub
         </div>
 

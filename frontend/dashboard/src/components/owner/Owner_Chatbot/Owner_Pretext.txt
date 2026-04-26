@@ -1,13 +1,23 @@
-FLEET DASHBOARD SNAPSHOT:
-Total Trips Monitored: 6
-Active Trips: 0
-Average Fleet Quality Score: 81.7/100
-Average Fleet Temperature: -18.3°C
-Total Alerts Active: 5
+SINGLE TRIP DASHBOARD SNAPSHOT:
+Trip ID: TRIP-C3809540-1777135426407
+Truck: C3809540
+Status: Complete
+Cargo Shrinkage (Weight Loss): -0.1%
+Quality Score: 32/100
+Temperature Compliance: 41%
 
-CRITICAL FLEET ALERTS:
-- Truck C3809540: TEMP Alert (-17.1°C)
-- Truck C3809540: SHOCK Alert 
-- Truck C3809540: SHOCK Alert 
-- Truck 4021C561: TEMP Alert (-17.6°C)
-- Truck 4021C561: SHOCK Alert 
+SUMMARY OF ANOMALIES:
+- Shock Events: 1
+- Cold Violations: 0
+- Hot Violations: 29
+
+DETAILED VIOLATION TIMES (Threshold Crosses):
+High TEMP excursions (>-18°C):
+  - 2026-04-25T16:50:53.979Z: -15.7°C
+  - 2026-04-25T16:50:54.459Z: -16.0°C
+  - 2026-04-25T16:50:54.958Z: -15.9°C
+  - 2026-04-25T16:50:56.676Z: -15.9°C
+  - 2026-04-25T16:50:58.641Z: -15.8°C
+  ... and 24 more events.
+SHOCK events (>0.5G):
+  - 2026-04-25T16:50:04.764Z: 0.51G
