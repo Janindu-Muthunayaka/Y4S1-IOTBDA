@@ -6,7 +6,7 @@ import {
   LineElement, BarElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { computeQuality, riskStatus, fmtDate, fmtTime, timeAgo, Gauge, StatusBadge } from './OwnerHome';
+import { computeQuality, riskLevel, fmtDate, fmtTime, timeAgo, Gauge, StatusBadge } from './OwnerHome';
 import { useChatbot } from '../Owner_Chatbot/Owner_ChatbotContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
@@ -52,13 +52,13 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
   const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
   const quality = computeQuality(sensorData);
-  const status = riskStatus(quality);
+  const status = riskLevel(quality);
 
   const w1 = latestTrip?.startWeight ?? latestTrip?.weight1;
   const w2 = latestTrip?.endWeight ?? latestTrip?.weight2;
   const weightLoss = (w1 != null && w2 != null && w1 > 0) ? (((w1 - w2) / w1) * 100).toFixed(1) : null;
 
-  const isActive = latestTrip?.active === true || latestTrip?.status === 'ACTIVE';
+  const isActive = latestTrip?.status !== 'Complete' && latestTrip?.status !== 'COMPLETED';
 
   const handleExportCSV = () => {
     const headers = ['Trip ID', 'Direction', 'Start Weight (kg)', 'End Weight (kg)', 'Status', 'Started At'];

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { computeQuality, riskStatus, StatusBadge } from './OwnerHome';
+import { computeQuality, riskLevel, StatusBadge } from './OwnerHome';
 
 export default function OwnerTrucks({ trips, liveData }) {
   const navigate = useNavigate();
@@ -21,10 +21,10 @@ export default function OwnerTrucks({ trips, liveData }) {
     const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
     const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
     const quality = computeQuality(sensors);
-    const status = riskStatus(quality);
+    const risk = riskLevel(quality);
     const tripsCount = trips.filter(t => t.truck_id === trip.truck_id).length;
-    const completedCount = trips.filter(t => t.truck_id === trip.truck_id && (t.active === false || t.status === 'COMPLETED' || t.status === 'Complete')).length;
-    return { ...trip, currentTemp, maxShock, quality, status, tripsCount, completedCount };
+    const completedCount = trips.filter(t => t.truck_id === trip.truck_id && (t.status === 'COMPLETED' || t.status === 'Complete')).length;
+    return { ...trip, currentTemp, maxShock, quality, riskLevel: risk, tripsCount, completedCount };
   });
 
   return (
@@ -41,7 +41,7 @@ export default function OwnerTrucks({ trips, liveData }) {
             Active: <strong>{enriched.filter(t => trips.some(x => x.truck_id === t.truck_id && (x.active || x.status === 'ACTIVE'))).length}</strong>
           </div>
           <div className="owner-stats-pill">
-            Critical: <strong style={{ color: '#ef4444' }}>{enriched.filter(t => t.status === 'crit').length}</strong>
+            Critical: <strong style={{ color: '#ef4444' }}>{enriched.filter(t => t.riskLevel === 'crit').length}</strong>
           </div>
         </div>
       </div>
@@ -69,7 +69,7 @@ export default function OwnerTrucks({ trips, liveData }) {
                   <div className="owner-truck-card__id">
                     🚛 {truck.truck_id}
                   </div>
-                  <StatusBadge status={truck.status} />
+                  <StatusBadge status={truck.riskLevel} />
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -115,7 +115,7 @@ export default function OwnerTrucks({ trips, liveData }) {
                   <div style={{ height: 5, background: '#f3f4f6', borderRadius: 4 }}>
                     <div style={{
                       width: `${truck.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s',
-                      background: truck.status === 'safe' ? '#10b981' : truck.status === 'warn' ? '#f59e0b' : '#ef4444'
+                      background: truck.riskLevel === 'safe' ? '#10b981' : truck.riskLevel === 'warn' ? '#f59e0b' : '#ef4444'
                     }} />
                   </div>
                 </div>
@@ -170,7 +170,7 @@ export default function OwnerTrucks({ trips, liveData }) {
                     {trip.timestamp ? new Date(trip.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
                   </td>
                   <td>
-                    <span className={`o-badge ${(trip.active || trip.status === 'ACTIVE') ? 'o-badge--safe o-badge--dot' : 'o-badge--neutral'}`}>
+                    <span className={`o-badge ${(trip.status === 'Complete' || trip.status === 'COMPLETED') ? 'o-badge--neutral' : 'o-badge--safe o-badge--dot'}`}>
                       {trip.status}
                     </span>
                   </td>

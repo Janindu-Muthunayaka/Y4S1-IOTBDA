@@ -1,5 +1,9 @@
 import React, { useMemo } from 'react';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
 import { computeQuality, fmtDate } from './OwnerHome';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function OwnerReports({ trips, liveData }) {
   const now = new Date();
@@ -25,8 +29,8 @@ export default function OwnerReports({ trips, liveData }) {
     ? Math.round(enriched.reduce((s, t) => s + t.quality, 0) / enriched.length)
     : '--';
 
-  const outbound = trips.filter(t => t.trip_type === 'OUTGOING' || t.trip_direction === 'OUTBOUND').length;
-  const inbound = trips.filter(t => t.trip_type === 'INCOMING' || t.trip_direction === 'INBOUND').length;
+  const completedOutbound = completedTrips.filter(t => t.trip_type === 'OUTGOING' || t.trip_direction === 'OUTBOUND').length;
+  const completedInbound = completedTrips.filter(t => t.trip_type === 'INCOMING' || t.trip_direction === 'INBOUND').length;
 
   // Unique trucks
   const uniqueTrucks = [...new Set(trips.map(t => t.truck_id))];
@@ -89,34 +93,43 @@ export default function OwnerReports({ trips, liveData }) {
           <div className="owner-card__header">
             <div className="owner-card__title">📊 Trip Direction Breakdown</div>
           </div>
-          <div className="owner-card__body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem', color: '#374151' }}>
-                  <span style={{ fontWeight: 600 }}>🔵 Outbound</span>
-                  <span style={{ fontWeight: 700 }}>{outbound}</span>
-                </div>
-                <div style={{ height: 8, background: '#f3f4f6', borderRadius: 4 }}>
-                  <div style={{ width: trips.length > 0 ? `${(outbound / trips.length) * 100}%` : '0%', height: '100%', background: '#3b82f6', borderRadius: 4, transition: 'width 0.6s' }} />
-                </div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem', color: '#374151' }}>
-                  <span style={{ fontWeight: 600 }}>🟣 Inbound</span>
-                  <span style={{ fontWeight: 700 }}>{inbound}</span>
-                </div>
-                <div style={{ height: 8, background: '#f3f4f6', borderRadius: 4 }}>
-                  <div style={{ width: trips.length > 0 ? `${(inbound / trips.length) * 100}%` : '0%', height: '100%', background: '#8b5cf6', borderRadius: 4, transition: 'width 0.6s' }} />
-                </div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.82rem', color: '#374151' }}>
-                  <span style={{ fontWeight: 600 }}>✅ Completed</span>
-                  <span style={{ fontWeight: 700 }}>{completedTrips.length}</span>
-                </div>
-                <div style={{ height: 8, background: '#f3f4f6', borderRadius: 4 }}>
-                  <div style={{ width: trips.length > 0 ? `${(completedTrips.length / trips.length) * 100}%` : '0%', height: '100%', background: '#10b981', borderRadius: 4, transition: 'width 0.6s' }} />
-                </div>
+          <div className="owner-card__body" style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Doughnut 
+                data={{
+                  labels: [`Outbound: ${completedOutbound}`, `Inbound: ${completedInbound}`],
+                  datasets: [{
+                    data: [completedOutbound, completedInbound],
+                    backgroundColor: ['#3b82f6', '#8b5cf6'],
+                    hoverBackgroundColor: ['#2563eb', '#7c3aed'],
+                    borderWidth: 0,
+                    cutout: '72%'
+                  }]
+                }}
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                      labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: { size: 12, weight: 700, family: 'Inter' },
+                        color: '#374151'
+                      }
+                    },
+                    tooltip: {
+                      backgroundColor: '#1f2937',
+                      padding: 12,
+                      cornerRadius: 8,
+                      titleFont: { size: 13, weight: 700 }
+                    }
+                  }
+                }}
+              />
+              <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none', left: '50%', top: '44%', transform: 'translate(-50%, -50%)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Completed</span>
+                <span style={{ fontSize: '2rem', fontWeight: 900, color: '#111827', lineHeight: 1 }}>{completedTrips.length}</span>
               </div>
             </div>
           </div>
@@ -135,8 +148,8 @@ export default function OwnerReports({ trips, liveData }) {
                   return (
                     <div key={i} style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>🚛 {truckId}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{truckTrips.length} trips recorded</div>
+                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#111827' }}>🚛 {truckId}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 500 }}>{truckTrips.length} trips recorded</div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{ textAlign: 'right' }}>
