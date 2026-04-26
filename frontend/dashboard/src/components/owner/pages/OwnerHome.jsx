@@ -30,6 +30,11 @@ export function timeAgo(d) {
 export function computeQuality(sensors) {
   if (!sensors) return 100;
   
+  // Use ML predicted score if available from the backend payload
+  if (sensors.ml_quality !== undefined) {
+    return Math.max(0, Math.min(100, Math.round(sensors.ml_quality)));
+  }
+
   const temps = sensors.temperature_data || [];
   const motions = sensors.motion_data || [];
   
@@ -64,8 +69,8 @@ export function Gauge({ value = 68, size = 190 }) {
 
   const startA = -215, totalA = 250;
   const angle = startA + (Math.min(100, Math.max(0, value)) / 100) * totalA;
-  const color = value >= 80 ? '#059669' : value >= 55 ? '#d97706' : '#dc2626';
-  const label = value >= 80 ? 'Safe' : value >= 55 ? 'Elevated Risk' : 'High Risk';
+  const color = value >= 90 ? '#059669' : value >= 70 ? '#d97706' : '#dc2626';
+  const label = value >= 90 ? 'Safe' : value >= 70 ? 'Elevated Risk' : 'High Risk';
 
   const nx = cx + (radius - 14) * Math.cos(toRad(angle));
   const ny = cy + (radius - 14) * Math.sin(toRad(angle));
@@ -75,18 +80,23 @@ export function Gauge({ value = 68, size = 190 }) {
       <svg width={size} height={size * 0.66} viewBox={`0 0 ${size} ${size * 0.66}`}>
         {/* Track */}
         <path d={arc(radius, -215, 35)} fill="none" stroke="#e5e7eb" strokeWidth={11} strokeLinecap="round" />
-        {/* Red (Critical: 0-54%) */}
-        <path d={arc(radius, -215, -77)} fill="none" stroke="#dc2626" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
-        {/* Yellow (Warning: 55-79%) */}
-        <path d={arc(radius, -77, -15)} fill="none" stroke="#d97706" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
-        {/* Green (Safe: 80-100%) */}
-        <path d={arc(radius, -15, 35)} fill="none" stroke="#059669" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
+        {/* Red (Critical: 0-69%) */}
+        <path d={arc(radius, -215, -40)} fill="none" stroke="#dc2626" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
+        {/* Yellow (Warning: 70-89%) */}
+        <path d={arc(radius, -40, 10)} fill="none" stroke="#d97706" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
+        {/* Green (Safe: 90-100%) */}
+        <path d={arc(radius, 10, 35)} fill="none" stroke="#059669" strokeWidth={11} strokeLinecap="round" opacity={0.9} />
         {/* Needle */}
-        <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#374151" strokeWidth={2.5} strokeLinecap="round" />
+        <line 
+          x1={cx} y1={cy} 
+          x2={cx + radius - 14} y2={cy} 
+          stroke="#374151" strokeWidth={2.5} strokeLinecap="round" 
+          style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${cx}px ${cy}px`, transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)' }} 
+        />
         <circle cx={cx} cy={cy} r={6} fill="#374151" />
         <circle cx={cx} cy={cy} r={3} fill="#fff" />
         {/* Value */}
-        <text x={cx} y={cy + 26} textAnchor="middle" fontSize={16} fontWeight={900} fontFamily="Inter" fill="#111827">{value}%</text>
+        <text x={cx} y={32} textAnchor="middle" fontSize={32} fontWeight={900} fontFamily="Inter" fill="#111827">{value}%</text>
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '88%', marginTop: '-0.25rem' }}>
         <span style={{ fontSize: '0.62rem', color: '#dc2626', fontWeight: 700 }}>Critical</span>
@@ -119,6 +129,14 @@ const baseChartOpts = {
 export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus }) {
   const [truckFilter, setTruckFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [mlTimeout, setMlTimeout] = useState(false);
+  const [artificialLoading, setArtificialLoading] = useState(true);
+
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => setMlTimeout(true), 10000);
+    const minTimer = setTimeout(() => setArtificialLoading(false), 2000);
+    return () => { clearTimeout(fallbackTimer); clearTimeout(minTimer); };
+  }, []);
 
   const uniqueTrucks = [...new Set(trips.map(t => t.truck_id))];
 
@@ -162,10 +180,12 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
   // QA-Aligned Alert Counts
   const critCount = enriched.filter(t => t.hasTempViolation).length;
   const warnCount = enriched.filter(t => t.hasMajorShock && !t.hasTempViolation).length;
-  const allTemps = activeFull.filter(t => t.currentTemp !== null).map(t => t.currentTemp);
+  const allTemps = enriched.filter(t => t.currentTemp !== null).map(t => t.currentTemp);
   const avgTemp = allTemps.length > 0 ? (allTemps.reduce((a, b) => a + b, 0) / allTemps.length).toFixed(1) : null;
   const avgQuality = enriched.length > 0 ? Math.round(enriched.reduce((s, t) => s + t.quality, 0) / enriched.length) : 100;
   const overallRisk = avgQuality;
+
+  const isAvgQualityLoading = artificialLoading || (enriched.length > 0 && !enriched.every(t => liveData[t.trip_id]?.ml_quality !== undefined) && !mlTimeout);
 
   // Temp trend
   const timeBuckets = {};
@@ -173,9 +193,12 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     const s = liveData[trip.trip_id];
     if (s && s.temperature_data) {
       s.temperature_data.forEach(t => {
-        if (!timeBuckets[t.time]) timeBuckets[t.time] = { sum: 0, n: 0 };
-        timeBuckets[t.time].sum += Number(t.avg);
+        if (!timeBuckets[t.time]) timeBuckets[t.time] = { sum: 0, n: 0, min: 100, max: -100 };
+        const val = Number(t.avg);
+        timeBuckets[t.time].sum += val;
         timeBuckets[t.time].n++;
+        if (val < timeBuckets[t.time].min) timeBuckets[t.time].min = val;
+        if (val > timeBuckets[t.time].max) timeBuckets[t.time].max = val;
       });
     }
   });
@@ -190,19 +213,61 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     if (mod.toUpperCase() === 'PM') h += 12;
     return `${h.toString().padStart(2, '0')}:${m}`;
   };
+  const times = Object.keys(timeBuckets).sort((a, b) => parseTo24H(a).localeCompare(parseTo24H(b))).slice(-40);
+  
+  // Clean up time labels for the chart (HH:MM)
+  const chartLabels = times.map(t => {
+    try {
+      const date = new Date(t);
+      if (!isNaN(date.getTime())) return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      return t.split(' ')[1] || t; // fallback for other formats
+    } catch { return t; }
+  });
 
-  const times = Object.keys(timeBuckets).sort((a, b) => parseTo24H(a).localeCompare(parseTo24H(b))).slice(-30);
-  const tempVals = times.map(t => (timeBuckets[t].sum / timeBuckets[t].n).toFixed(2));
+  const avgVals = times.map(t => (timeBuckets[t].sum / timeBuckets[t].n).toFixed(2));
+  const minVals = times.map(t => timeBuckets[t].min.toFixed(2));
+  const maxVals = times.map(t => timeBuckets[t].max.toFixed(2));
+
+  // Dynamic Scaling from QA_Graphs.jsx
+  const tDataMin = Math.min(...minVals.map(v => Number(v)), -22);
+  const tDataMax = Math.max(...maxVals.map(v => Number(v)), -15);
+  const tRange = tDataMax - tDataMin || 2;
+  const tChartMin = tDataMin - (tRange * 0.2);
+  const tChartMax = tDataMax + (tRange * 0.2);
 
   const tempChartData = {
-    labels: times.length > 0 ? times : ['No data'],
-    datasets: [{
-      label: 'Fleet Avg Temp (°C)',
-      data: tempVals.length > 0 ? tempVals : [0],
-      borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)',
-      fill: true, tension: 0.1, borderWidth: 2.5,
-      pointRadius: 3, pointBackgroundColor: '#3b82f6', pointBorderColor: '#fff', pointBorderWidth: 2,
-    }]
+    labels: chartLabels.length > 0 ? chartLabels : ['No data'],
+    datasets: [
+      {
+        label: 'Fleet Average',
+        data: avgVals,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.1)',
+        fill: false,
+        tension: 0.4,
+        borderWidth: 3,
+        pointRadius: 2,
+        zIndex: 10
+      },
+      {
+        label: 'Fleet Range (Min)',
+        data: minVals,
+        borderColor: 'transparent',
+        backgroundColor: 'rgba(59,130,246,0.05)',
+        fill: '+1', // Fill to Max
+        tension: 0.4,
+        pointRadius: 0,
+      },
+      {
+        label: 'Fleet Range (Max)',
+        data: maxVals,
+        borderColor: 'transparent',
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.4,
+        pointRadius: 0,
+      }
+    ]
   };
 
   // Vibration
@@ -245,14 +310,15 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     {
       label: 'Average Temperature', value: avgTemp !== null ? `${avgTemp}°C` : '--',
       icon: '🌡️', iconBg: '#ecfdf5', color: avgTemp !== null && Number(avgTemp) <= -18 ? '#059669' : '#dc2626',
-      sub: avgTemp !== null ? (Number(avgTemp) <= -18 ? '✓ Within safe limits' : '↑ Above safe average') : 'No active trucks',
+      sub: avgTemp !== null ? (Number(avgTemp) <= -18 ? '✓ Within safe limits' : '↑ Above safe average') : 'No trips in filter',
       subColor: avgTemp !== null && Number(avgTemp) <= -18 ? '#059669' : '#dc2626'
     },
     {
-      label: 'Quality Score', value: `${avgQuality}%`,
+      label: 'Quality Score', value: isAvgQualityLoading ? '---' : `${avgQuality}%`,
       icon: '⭐', iconBg: '#faf5ff', color: '#7c3aed',
-      sub: warnCount > 0 ? `⚠ ${warnCount} trip${warnCount > 1 ? 's' : ''} with warnings` : '✓ Fleet average',
-      subColor: warnCount > 0 ? '#d97706' : '#9ca3af'
+      sub: isAvgQualityLoading ? 'Analyzing Fleet...' : (warnCount > 0 ? `⚠ ${warnCount} trip${warnCount > 1 ? 's' : ''} with warnings` : '✓ Fleet average'),
+      subColor: isAvgQualityLoading ? '#9ca3af' : (warnCount > 0 ? '#d97706' : '#9ca3af'),
+      isLoading: isAvgQualityLoading
     }
   ];
 
@@ -334,7 +400,14 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
               <span className="owner-kpi-card__label">{k.label}</span>
               <div className="owner-kpi-card__icon" style={{ background: k.iconBg }}>{k.icon}</div>
             </div>
-            <div className="owner-kpi-card__value" style={{ color: k.color }}>{k.value}</div>
+            {k.isLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '1.25rem 0' }}>
+                <div className="qa-loading-spinner" style={{ width: '22px', height: '22px', borderWidth: '3px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                <span style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>Calculating…</span>
+              </div>
+            ) : (
+              <div className="owner-kpi-card__value" style={{ color: k.color }}>{k.value}</div>
+            )}
             <div className="owner-kpi-card__sub" style={{ color: k.subColor }}>{k.sub}</div>
           </div>
         ))}
@@ -348,11 +421,26 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
         </div>
         <div className="owner-card__body">
           <div style={{ position: 'relative', height: 270 }}>
-            {/* Critical zone overlay: Y scale goes from 5 to -30 (range 35). -18 is 23 units down from 5. 23/35 = 65.7% height */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '65.7%', background: 'linear-gradient(180deg, rgba(220,38,38,0.08) 0%, rgba(220,38,38,0.02) 100%)', borderBottom: '1.5px dashed rgba(220,38,38,0.4)', zIndex: 1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-              <span style={{ color: '#dc2626', fontSize: '0.67rem', fontWeight: 700, padding: '0.25rem 0.5rem', opacity: 0.8, alignSelf: 'flex-start' }}>CRITICAL ZONE (&gt;-18°C)</span>
-            </div>
-            <Line data={tempChartData} options={{ ...baseChartOpts, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, min: -30, max: 5, ticks: { ...baseChartOpts.scales.y.ticks, callback: v => `${v}°` } } } }} />
+            {/* Dynamic Critical zone overlay: top:0 to -18. In range [tChartMax, tChartMin] */}
+            {tChartMax > -18 && (
+              <div style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                right: 0, 
+                height: `${Math.max(0, Math.min(100, ((tChartMax - (-18)) / (tChartMax - tChartMin)) * 100))}%`, 
+                background: 'linear-gradient(180deg, rgba(220,38,38,0.1) 0%, rgba(220,38,38,0.02) 100%)', 
+                borderBottom: '1.5px dashed rgba(220,38,38,0.4)', 
+                zIndex: 1, 
+                pointerEvents: 'none', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                justifyContent: 'flex-end' 
+              }}>
+                <span style={{ color: '#dc2626', fontSize: '0.67rem', fontWeight: 700, padding: '0.25rem 0.5rem', opacity: 0.8, alignSelf: 'flex-start' }}>CRITICAL ZONE (&gt;-18°C)</span>
+              </div>
+            )}
+            <Line data={tempChartData} options={{ ...baseChartOpts, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, min: tChartMin, max: tChartMax, ticks: { ...baseChartOpts.scales.y.ticks, callback: v => `${v.toFixed(0)}°` } } } }} />
           </div>
         </div>
       </div>
@@ -401,10 +489,21 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ flex: 1, height: 5, background: '#f0f2f8', borderRadius: 4, maxWidth: 64, minWidth: 40 }}>
-                          <div style={{ width: `${trip.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s', background: trip.riskLevel === 'safe' ? '#059669' : trip.riskLevel === 'warn' ? '#d97706' : '#dc2626' }} />
-                        </div>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 700, minWidth: 32 }}>{trip.quality}%</span>
+                        {((!liveData[trip.trip_id]?.ml_quality && !mlTimeout) || artificialLoading) ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                             <div className="qa-loading-spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                             <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Model...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ flex: 1, height: 5, background: '#f0f2f8', borderRadius: 4, maxWidth: 64, minWidth: 40 }}>
+                              <div style={{ width: `${trip.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s', background: trip.riskLevel === 'safe' ? '#059669' : trip.riskLevel === 'warn' ? '#d97706' : '#dc2626' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 32 }}>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>{trip.quality}%</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </td>
                     <td><StatusBadge status={trip.riskLevel} /></td>
@@ -459,7 +558,14 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
             <div className="owner-card__title">🎯 Trip Risk Level</div>
           </div>
           <div className="owner-card__body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', paddingTop: '1.5rem' }}>
-            <Gauge value={overallRisk} size={200} />
+            {((!Object.values(liveData).some(s => s.ml_quality) && !mlTimeout) || artificialLoading) ? (
+              <div style={{ height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+                <div className="qa-loading-spinner" style={{ width: '36px', height: '36px', borderWidth: '3px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 600 }}>Analyzing Fleet Quality...</span>
+              </div>
+            ) : (
+              <Gauge value={overallRisk} size={200} />
+            )}
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.73rem', color: '#6b7280', marginTop: '0.5rem', borderTop: '1px solid #f0f2f8', paddingTop: '0.875rem', width: '100%', justifyContent: 'space-around' }}>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
                 <span style={{ fontWeight: 800, color: '#059669', fontSize: '1.1rem' }}>{enriched.filter(t => t.riskLevel === 'safe').length}</span>

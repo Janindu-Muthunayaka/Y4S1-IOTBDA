@@ -1,11 +1,8 @@
 DASHBOARD SNAPSHOT CONTENT:
-Currently Viewing: Main Dashboard
+Currently Viewing: Temperature Page
 Trip: TRIP-C3809540-1777135936387 (Complete)
 
---- TRIP OVERVIEW ---
-Route: Warehouse → Retailer
-Cargo: Mismatch (Exp: 114.528 kg, Cur: 112.912 kg)
-Temp: -18.6°C (100% Compliance)
-Shocks: NORMAL (0 events)
-
-STATUS: Active alerts detected in system.
+--- TEMPERATURE ANALYTICS ---
+Current: -18.6°C
+Compliance: 100%
+Anomalies: 9
