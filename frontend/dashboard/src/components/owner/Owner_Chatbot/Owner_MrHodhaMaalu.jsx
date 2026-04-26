@@ -192,15 +192,15 @@ export default function MrHodhaMaalu() {
                     </div>
 
                     <div className="chat-input-area">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Ask about fleet performance..."
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                         />
-                        <button 
-                            className="send-btn" 
+                        <button
+                            className="send-btn"
                             onClick={handleSendMessage}
                             disabled={!inputValue.trim() || isLoading}
                         >

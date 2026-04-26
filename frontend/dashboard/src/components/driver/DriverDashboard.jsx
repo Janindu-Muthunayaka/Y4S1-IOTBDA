@@ -191,9 +191,9 @@ function DriverDashboardContent() {
                                 <div className="driver-flex-row">
 
                                     {/* Temperature */}
-                                    <div 
-                                        className="driver-condition-card" 
-                                        onClick={() => navigate('/driver/temperature')} 
+                                    <div
+                                        className="driver-condition-card"
+                                        onClick={() => navigate('/driver/temperature')}
                                         style={{ cursor: 'pointer' }}
                                     >
                                         <div className="driver-condition-title">Highest Temperature</div>
@@ -265,7 +265,11 @@ function DriverDashboardContent() {
                                     </div>
 
                                     {/* Shock Level */}
-                                    <div className="driver-condition-card">
+                                    <div
+                                        className="driver-condition-card"
+                                        onClick={() => navigate('/driver/shocks')}
+                                        style={{ cursor: 'pointer' }}
+                                    >
                                         <div className="driver-condition-title">Shock Level</div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
                                             <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: shockEventsCount === 0 ? '#e8faf0' : '#fff3cd', border: `2px solid ${shockEventsCount === 0 ? '#30d158' : '#f0a500'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -358,13 +362,12 @@ function DriverDashboardContent() {
                                     </div>
                                 )}
                             </div>
-
                         </div>
                     </div>
+                    {/* Integrated Chatbot inside phone screen */}
+                    <Driver_MrHodhaMaalu />
                 </div>
             </div>
-
-            <Driver_MrHodhaMaalu />
         </div>
     );
 }
