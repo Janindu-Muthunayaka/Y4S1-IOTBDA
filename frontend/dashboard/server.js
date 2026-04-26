@@ -42,14 +42,14 @@ const io = new SocketIOServer(httpServer, {
 
 const getChatbotConfig = (role) => {
     switch (role) {
-        case 'retailer': 
+        case 'retailer':
             return { dir: path.join(CHATBOT_BASE, 'retailer', 'Retail_Chatbot'), prefix: 'Retail_' };
-        case 'owner': 
+        case 'owner':
             return { dir: path.join(CHATBOT_BASE, 'owner', 'Owner_Chatbot'), prefix: 'Owner_' };
-        case 'driver': 
+        case 'driver':
             return { dir: path.join(CHATBOT_BASE, 'driver', 'Driver_Chatbot'), prefix: 'Driver_' };
-        case 'qa': 
-        default: 
+        case 'qa':
+        default:
             return { dir: path.join(CHATBOT_BASE, 'qa-inspector', 'Chatbot'), prefix: '' };
     }
 };
@@ -81,10 +81,10 @@ async function buildFullPayload() {
         // Execute ML script asynchronously
         const pythonScriptPath = path.join(__dirname, 'QualityScore', 'predict_quality.py');
         const pythonProcess = spawn('python', [pythonScriptPath]);
-        
+
         let dataString = '';
         pythonProcess.stdout.on('data', (data) => dataString += data.toString());
-        
+
         const mlScores = await new Promise((resolve) => {
             pythonProcess.on('close', (code) => {
                 if (code !== 0) {
@@ -211,7 +211,7 @@ app.get('/api/quality-score/:trip_id', async (req, res) => {
     try {
         const trip = await Trip.findOne({ trip_id: req.params.trip_id });
         const sensorData = await SensorData.findOne({ trip_id: req.params.trip_id });
-        
+
         if (!trip || !sensorData) {
             return res.status(404).json({ error: 'Trip or SensorData not found' });
         }
@@ -297,7 +297,34 @@ app.post('/api/chatbot/:role/pretext', (req, res) => {
     }
 });
 
-// 4. Owner Chatbot — OpenAI GPT Chat (API key is ONLY on the server, never exposed to browser)
+// 4. Driver Chatbot — OpenAI GPT Chat (Secure backend proxy)
+app.post('/api/chatbot/driver/chat', async (req, res) => {
+    try {
+        const { systemPrompt, messages } = req.body;
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey || apiKey === 'your-openai-api-key-here') {
+            return res.status(500).json({ error: 'OpenAI API key not configured.' });
+        }
+        const openai = new OpenAI({ apiKey });
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...messages
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+        });
+        const botResponse = completion.choices[0]?.message?.content || 'No response generated.';
+        res.json({ response: botResponse });
+    } catch (err) {
+        const errorMsg = err?.error?.message || err.message || 'Unknown OpenAI error';
+        console.error('[Driver Chatbot] OpenAI API Error:', errorMsg);
+        res.status(500).json({ error: errorMsg });
+    }
+});
+
+// 5. Owner Chatbot — OpenAI GPT Chat (API key is ONLY on the server, never exposed to browser)
 app.post('/api/chatbot/owner/chat', async (req, res) => {
     try {
         const { systemPrompt, messages } = req.body;

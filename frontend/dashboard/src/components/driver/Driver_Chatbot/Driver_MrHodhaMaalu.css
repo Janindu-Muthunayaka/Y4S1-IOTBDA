@@ -1,75 +1,63 @@
 /* MrHodhaMaalu.css - Premium Chatbot Styles */
 
-.chatbot-wrapper {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 1000;
+.driver-chatbot-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 72px; /* Start right after sidebar */
+    width: calc(100% - 72px);
+    height: 100%;
+    z-index: 2000;
+    pointer-events: none; /* Let clicks through to the background when chat is hidden */
     display: flex;
-    flex-direction: column;
     align-items: flex-end;
-    gap: 16px;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    justify-content: center;
+    padding-bottom: 20px;
 }
 
-/* Floating Icon Button */
-.chatbot-toggle {
-    width: 60px;
-    height: 60px;
+/* Realistic Small Chat Window */
+.chat-window {
+    width: 280px;
+    height: 380px;
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    pointer-events: auto; /* Enable clicks on the chat window itself */
+    animation: slideUp 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.chat-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: transparent;
-    border: 2px solid #000000;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    font-size: 20px;
+    transition: background 0.2s;
+    margin-left: auto;
 }
 
-.chatbot-toggle:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-}
-
-.chatbot-toggle.active {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: #000000;
-}
-
-.chatbot-icon {
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-}
-
-/* Chat Window Container */
-.chat-window {
-    width: 380px;
-    height: 550px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 20px;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: slideIn 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    transform-origin: bottom right;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: scale(0.8) translateY(40px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+.chat-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 /* Header */
@@ -140,7 +128,7 @@
     align-self: flex-start;
     border-bottom-left-radius: 4px;
     color: #1e293b;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .message.user {
@@ -162,7 +150,7 @@
 .chat-input-area {
     padding: 16px 20px;
     background: white;
-    border-top: 1px solid rgba(0,0,0,0.05);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     gap: 10px;
 }
