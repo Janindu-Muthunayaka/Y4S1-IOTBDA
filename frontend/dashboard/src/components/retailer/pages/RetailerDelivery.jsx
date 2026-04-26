@@ -89,7 +89,7 @@ function TemperatureChart() {
         <line x1={paddingLeft} x2={svgWidth - paddingRight} y1={paddingTop + chartHeight} y2={paddingTop + chartHeight} stroke="#E5E7EB" strokeWidth="1" />
         <line x1={paddingLeft} x2={paddingLeft} y1={paddingTop} y2={paddingTop + chartHeight} stroke="#E5E7EB" strokeWidth="1" />
 
-        <polyline fill="none" stroke="#7C3AED" strokeWidth="2" points={points} />
+        <polyline fill="none" stroke="#2563EB" strokeWidth="2" points={points} />
 
         {TEMP_POINTS.map((p, i) => (
           <text key={i} x={getX(i)} y={paddingTop + chartHeight + 14} textAnchor="middle" fontSize="9" fill="#9CA3AF">
@@ -107,7 +107,7 @@ function TemperatureChart() {
             <g key={i}>
               <circle
                 cx={cx} cy={cy} r="5"
-                fill={isHot ? "#EF4444" : "#7C3AED"}
+                fill={isHot ? "#EF4444" : "#2563EB"}
                 stroke="#fff" strokeWidth="1.5"
                 style={{ cursor: "pointer" }}
                 onMouseEnter={() => setTooltip({ x: cx, y: cy, point: p })}
