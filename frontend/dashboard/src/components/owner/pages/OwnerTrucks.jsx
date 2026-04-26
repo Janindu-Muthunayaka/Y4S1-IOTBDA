@@ -147,7 +147,7 @@ export default function OwnerTrucks({ trips, liveData }) {
             <tbody>
               {trips.slice(0, 20).map(trip => (
                 <tr key={trip.trip_id} onClick={() => navigate(`/owner/trucks/${trip.truck_id}?trip=${trip.trip_id}`)} style={{ cursor: 'pointer' }}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{trip.trip_id.slice(0, 16)}…</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.72rem', maxWidth: '280px', wordBreak: 'break-all' }}>{trip.trip_id}</td>
                   <td>{trip.truck_id}</td>
                   <td>
                     <span className={`o-badge ${(trip.trip_type === 'OUTGOING' || trip.trip_direction === 'OUTBOUND') ? 'o-badge--info' : 'o-badge--neutral'}`}>

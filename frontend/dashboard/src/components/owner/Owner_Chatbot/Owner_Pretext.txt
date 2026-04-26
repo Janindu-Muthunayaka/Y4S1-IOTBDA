@@ -9,5 +9,5 @@ CRITICAL FLEET ALERTS:
 - Truck C3809540: TEMP Alert (-17.1°C)
 - Truck C3809540: SHOCK Alert 
 - Truck C3809540: SHOCK Alert 
-- Truck C3809540: TEMP Alert (-17.6°C)
-- Truck C3809540: SHOCK Alert 
+- Truck 4021C561: TEMP Alert (-17.6°C)
+- Truck 4021C561: SHOCK Alert 
