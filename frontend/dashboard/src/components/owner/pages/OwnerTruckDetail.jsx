@@ -122,7 +122,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   };
 
   const tempChartData = {
-    labels: temps.map(t => t.time),
+    labels: temps.map(t => fmtTime(t.time)),
     datasets: [{
       label: 'Temperature (°C)',
       data: temps.map(t => Number(t.avg)),
@@ -142,7 +142,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   };
 
   const vibChartData = {
-    labels: motions.map(m => m.time),
+    labels: motions.map(m => fmtTime(m.time)),
     datasets: [{
       label: 'Vibration (g)',
       data: motions.map(m => m.max_accel),
