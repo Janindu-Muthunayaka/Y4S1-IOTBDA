@@ -195,7 +195,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
   const tempVals = times.map(t => (timeBuckets[t].sum / timeBuckets[t].n).toFixed(2));
 
   const tempChartData = {
-    labels: times.length > 0 ? times : ['No data'],
+    labels: times.length > 0 ? times.map(t => fmtTime(t)) : ['No data'],
     datasets: [{
       label: 'Fleet Avg Temp (°C)',
       data: tempVals.length > 0 ? tempVals : [0],
