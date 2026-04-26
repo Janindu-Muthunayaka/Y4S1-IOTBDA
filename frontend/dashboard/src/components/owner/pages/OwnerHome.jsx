@@ -29,17 +29,17 @@ export function timeAgo(d) {
 }
 export function computeQuality(sensors) {
   if (!sensors) return 100;
-  
+
   const temps = sensors.temperature_data || [];
   const motions = sensors.motion_data || [];
-  
+
   // Borrowed logic from QA_Trip.jsx
   const tempViolations = temps.filter(t => Number(t.avg) > -18);
   const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
-  
+
   const majorShocks = motions.filter(m => m.max_accel > 0.5);
   const minorShocks = motions.filter(m => m.max_accel > 0.2 && m.max_accel <= 0.5);
-  
+
   const score = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5) - (minorShocks.length * 2)));
   return score;
 }
@@ -124,13 +124,13 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
 
   const baseFilteredTrips = trips.filter(t => {
     if (truckFilter !== 'all' && t.truck_id !== truckFilter) return false;
-    
+
     // Check if trip is complete according to DB structure
     const isComplete = t.status === 'Complete' || t.status === 'COMPLETED';
-    
+
     if (statusFilter === 'ACTIVE' && isComplete) return false;
     if (statusFilter === 'COMPLETED' && !isComplete) return false;
-    
+
     return true;
   });
 
@@ -141,13 +141,13 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
     const shockEvents = motions.filter(m => m.max_accel > 0.5).length;
     const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
-    
+
     // Borrowed Alert Logic from QA Inspector
     const hasTempViolation = temps.some(t => Number(t.avg) > -18);
     const hasMajorShock = maxShock > 0.5;
 
     const quality = computeQuality(sensors);
-    
+
     // QA Logic: Temp violation is Critical, Major Shock is Warning
     let risk = 'safe';
     if (hasTempViolation) risk = 'crit';
@@ -158,7 +158,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
 
   // A trip is active if its status is NOT Complete/COMPLETED
   const activeFull = enriched.filter(t => t.status !== 'Complete' && t.status !== 'COMPLETED');
-  
+
   // QA-Aligned Alert Counts
   const critCount = enriched.filter(t => t.hasTempViolation).length;
   const warnCount = enriched.filter(t => t.hasMajorShock && !t.hasTempViolation).length;
@@ -287,8 +287,8 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
       {/* Filter bar */}
       <div className="owner-filterbar">
         <div className="owner-filter-chip">📅 {today}</div>
-        
-        <select 
+
+        <select
           className={`owner-filter-chip ${truckFilter !== 'all' ? 'owner-filter-chip--active' : ''}`}
           value={truckFilter}
           onChange={(e) => setTruckFilter(e.target.value)}
@@ -299,28 +299,28 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
         </select>
 
         <div className="owner-slider-filter">
-          <button 
+          <button
             className={`owner-slider-btn ${statusFilter === 'all' ? 'active' : ''}`}
             onClick={() => setStatusFilter('all')}
           >
-            📋 All Trips
+            All Trips
           </button>
-          <button 
+          <button
             className={`owner-slider-btn ${statusFilter === 'ACTIVE' ? 'active' : ''}`}
             onClick={() => setStatusFilter('ACTIVE')}
           >
-            🟢 Active
+            Active
           </button>
-          <button 
+          <button
             className={`owner-slider-btn ${statusFilter === 'COMPLETED' ? 'active' : ''}`}
             onClick={() => setStatusFilter('COMPLETED')}
           >
-            ⚪ Complete
+            Complete
           </button>
-          <div 
-            className="owner-slider-indicator" 
-            style={{ 
-              transform: `translateX(${statusFilter === 'all' ? '0' : statusFilter === 'ACTIVE' ? '100%' : '200%'})` 
+          <div
+            className="owner-slider-indicator"
+            style={{
+              transform: `translateX(${statusFilter === 'all' ? '0' : statusFilter === 'ACTIVE' ? '100%' : '200%'})`
             }}
           />
         </div>
