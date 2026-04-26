@@ -13,7 +13,7 @@ export default function QA_Dash() {
     const [isLoading, setIsLoading] = useState(true);
     const [sensorMap, setSensorMap] = useState({});
     const { updateSnapshot } = useChatbot();
-    
+
     // Helpers
     const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
@@ -148,10 +148,11 @@ export default function QA_Dash() {
     const renderTripRow = (trip) => {
         const departureTime = fmtTime(trip.timestamp);
         const status = trip.status || 'Unknown';
+        const isIncoming = trip.trip_type === 'INCOMING' || trip.trip_direction === 'INBOUND';
 
         // Pickup/Action Time: Find the most significant mid-trip event
-        const pickupEvent = trip.stateChange?.find(s => 
-            s.status === 'Reached pickup location and loading' || 
+        const pickupEvent = trip.stateChange?.find(s =>
+            s.status === 'Reached pickup location and loading' ||
             s.status === 'Delivered and returning'
         );
         const pickupTime = pickupEvent ? fmtTime(pickupEvent.timestamp) : '--:--';
@@ -164,12 +165,29 @@ export default function QA_Dash() {
             : (arrivalRaw ? fmtTime(arrivalRaw) : '--:--');
 
         return (
-            <tr 
-                key={trip._id} 
+            <tr
+                key={trip._id}
                 onClick={() => navigate(`/qa/trip/${trip.trip_id}`)}
                 style={{ cursor: 'pointer' }}
                 className="qa-clickable-row"
             >
+                <td>
+                    <div className="qa-truck-pill">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
+                            <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
+                        </svg>
+                        {isIncoming ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '4px', marginRight: '6px' }}>
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
+                        ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '4px', marginRight: '6px' }}>
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        )}
+                        {trip.truck_id || '--'}
+                    </div>
+                </td>
                 <td className="qa-trip-id-cell">
                     <div style={{ fontWeight: 700, color: '#4F46E5', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>{trip.trip_id}</div>
                 </td>
@@ -184,14 +202,6 @@ export default function QA_Dash() {
                         {status}
                     </span>
                 </td>
-                <td>
-                    <div className="qa-truck-pill">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px', opacity: 0.7 }}>
-                            <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
-                        </svg>
-                        {trip.truck_id || '--'}
-                    </div>
-                </td>
             </tr>
         );
     };
@@ -201,25 +211,25 @@ export default function QA_Dash() {
         switch (type) {
             case 'critical':
                 return (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#E53E3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z" />
                     </svg>
                 );
             case 'warning':
                 return (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#DD6B20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 12c1-4 3-6 3-6s2 4 4 4 4-8 6-8 3 4 4 4 3 2 3 6" />
                     </svg>
                 );
             case 'minor':
                 return (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#D69E2E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                     </svg>
                 );
             default:
                 return (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#718096" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                     </svg>
                 );
@@ -254,140 +264,136 @@ export default function QA_Dash() {
                     <div className="qa-tables-col">
                         {/* ── Incoming Trucks (INBOUND) ────────────────────── */}
                         <div className="qa-section-card">
-                        <div className="qa-section-header">
-                            <div className="qa-section-title-group">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
-                                    <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-                                </svg>
-                                <span className="qa-section-title">Incoming Trucks</span>
-                                <span className="qa-badge qa-badge-trucks">{inboundTrips.length} trucks</span>
+                            <div className="qa-section-header">
+                                <div className="qa-section-title-group">
+                                    <span className="qa-section-title">Incoming Trucks</span>
+                                    <span className="qa-badge qa-badge-trucks">{inboundTrips.length} trucks</span>
+                                </div>
+                                <div className="qa-section-icon-group" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
+                                        <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+                                    </svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                                    </svg>
+                                </div>
                             </div>
-                            <button className="qa-filter-btn">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                                </svg>
-                                Filter
-                            </button>
-                        </div>
-                        <div className="qa-table-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Trip ID</th>
-                                        <th>Date</th>
-                                        <th>Departure</th>
-                                        <th>Pickup</th>
-                                        <th>Arrival</th>
-                                        <th>Status</th>
-                                        <th>Truck ID</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {inboundTrips.length === 0 ? (
-                                        <tr className="qa-empty-row">
-                                            <td colSpan="7">No inbound trips recorded.</td>
+                            <div className="qa-table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Truck ID</th>
+                                            <th>Trip ID</th>
+                                            <th>Date</th>
+                                            <th>Departure</th>
+                                            <th>Pickup</th>
+                                            <th>Arrival</th>
+                                            <th>Status</th>
                                         </tr>
-                                    ) : (
-                                        inboundTrips.map(renderTripRow)
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {inboundTrips.length === 0 ? (
+                                            <tr className="qa-empty-row">
+                                                <td colSpan="7">No inbound trips recorded.</td>
+                                            </tr>
+                                        ) : (
+                                            inboundTrips.map(renderTripRow)
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* ── Outgoing Trucks (OUTBOUND) ───────────────────── */}
-                    <div className="qa-section-card">
-                        <div className="qa-section-header">
-                            <div className="qa-section-title-group">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
-                                    <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-                                </svg>
-                                <span className="qa-section-title">Outgoing Trucks</span>
-                                <span className="qa-badge qa-badge-trucks">{outboundTrips.length} trucks</span>
+                        {/* ── Outgoing Trucks (OUTBOUND) ───────────────────── */}
+                        <div className="qa-section-card">
+                            <div className="qa-section-header">
+                                <div className="qa-section-title-group">
+                                    <span className="qa-section-title">Outgoing Trucks</span>
+                                    <span className="qa-badge qa-badge-trucks">{outboundTrips.length} trucks</span>
+                                </div>
+                                <div className="qa-section-icon-group" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M1 3h15v13H1z" /><path d="M16 8l4 2v6h-4z" />
+                                        <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+                                    </svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </div>
                             </div>
-                            <button className="qa-filter-btn">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                                </svg>
-                                Filter
-                            </button>
-                        </div>
-                        <div className="qa-table-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Trip ID</th>
-                                        <th>Date</th>
-                                        <th>Departure</th>
-                                        <th>Pickup</th>
-                                        <th>Arrival</th>
-                                        <th>Status</th>
-                                        <th>Truck ID</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {outboundTrips.length === 0 ? (
-                                        <tr className="qa-empty-row">
-                                            <td colSpan="7">No outbound trips recorded.</td>
+                            <div className="qa-table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Truck ID</th>
+                                            <th>Trip ID</th>
+                                            <th>Date</th>
+                                            <th>Departure</th>
+                                            <th>Dropoff</th>
+                                            <th>Arrival</th>
+                                            <th>Status</th>
                                         </tr>
-                                    ) : (
-                                        outboundTrips.map(renderTripRow)
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {outboundTrips.length === 0 ? (
+                                            <tr className="qa-empty-row">
+                                                <td colSpan="7">No outbound trips recorded.</td>
+                                            </tr>
+                                        ) : (
+                                            outboundTrips.map(renderTripRow)
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
                     </div> {/* End of qa-tables-col */}
-                    
+
                     {/* Right Column: Alerts */}
                     <div className="qa-alerts-col">
                         {/* ── Alerts & Notifications ───────────────────────── */}
                         <div className="qa-section-card">
-                        <div className="qa-section-header">
-                            <div className="qa-section-title-group">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DD6B20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
-                                </svg>
-                                <span className="qa-section-title">Alerts &amp; Notifications</span>
-                                <span className="qa-badge qa-badge-alerts">{alertCount} alerts</span>
-                            </div>
-                            <div className="qa-alerts-meta">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#AAA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                                </svg>
-                                Last synced just now
-                            </div>
-                        </div>
-
-                        <div className="qa-alerts-grid">
-                            {alerts.map((alert, i) => (
-                                <div 
-                                    key={i} 
-                                    className={`qa-alert-card qa-alert-${alert.type}`}
-                                    onClick={() => alert.tripId && navigate(`/qa/timeline/${alert.tripId}`)}
-                                >
-                                    <div className="qa-alert-icon-wrap">
-                                        <AlertIcon type={alert.type} />
-                                    </div>
-                                    <div className="qa-alert-severity-row">
-                                        <span className={`qa-sev-dot qa-sev-${alert.type}`}></span>
-                                        <span className="qa-sev-label">{alert.type === 'critical' ? 'Critical' : alert.type === 'warning' ? 'Warning' : alert.type === 'minor' ? 'Minor' : 'Info'}</span>
-                                    </div>
-                                    <div className="qa-alert-title">{alert.title}</div>
-                                    <div className="qa-alert-sub">{alert.sub}</div>
+                            <div className="qa-section-header">
+                                <div className="qa-section-title-group">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
+                                    </svg>
+                                    <span className="qa-section-title">Alerts &amp; Notifications</span>
+                                    <span className="qa-badge qa-badge-alerts">{alertCount} alerts</span>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="qa-alerts-meta">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#AAA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                    Last synced just now
+                                </div>
+                            </div>
 
-                        <div className="qa-legend-strip">
-                            <span className="qa-legend-label">Severity:</span>
-                            <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#E53E3E' }}></span> Critical</span>
-                            <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#DD6B20' }}></span> Warning</span>
-                            <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#D69E2E' }}></span> Minor</span>
-                            <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#A0AEC0' }}></span> Info</span>
-                        </div>
+                            <div className="qa-alerts-grid">
+                                {alerts.map((alert, i) => (
+                                    <div
+                                        key={i}
+                                        className={`qa-alert-card qa-alert-${alert.type}`}
+                                        onClick={() => alert.tripId && navigate(`/qa/timeline/${alert.tripId}`)}
+                                    >
+                                        <div className="qa-alert-icon-wrap">
+                                            <AlertIcon type={alert.type} />
+                                        </div>
+                                        <div className="qa-alert-severity-row">
+                                            <span className={`qa-sev-dot qa-sev-${alert.type}`}></span>
+                                            <span className="qa-sev-label">{alert.type === 'critical' ? 'Critical' : alert.type === 'warning' ? 'Warning' : alert.type === 'minor' ? 'Minor' : 'Info'}</span>
+                                        </div>
+                                        <div className="qa-alert-title">{alert.title}</div>
+                                        <div className="qa-alert-sub">{alert.sub}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="qa-legend-strip">
+                                <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#E53E3E' }}></span> Critical</span>
+                                <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#DD6B20' }}></span> Warning</span>
+                                <span className="qa-legend-item"><span className="qa-legend-swatch" style={{ background: '#D69E2E' }}></span> Minor</span>
+                            </div>
                         </div>
                     </div>
 

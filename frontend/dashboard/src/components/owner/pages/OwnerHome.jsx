@@ -30,21 +30,20 @@ export function timeAgo(d) {
 export function computeQuality(sensors) {
   if (!sensors) return 100;
   
-  // Use ML predicted score if available from the backend payload
-  if (sensors.ml_quality !== undefined) {
-    return Math.max(0, Math.min(100, Math.round(sensors.ml_quality)));
-  }
-
-  // Fallback heuristic logic
   const temps = sensors.temperature_data || [];
   const motions = sensors.motion_data || [];
-  let score = 100;
-  const latest = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
-  if (latest !== null && latest > -18) score -= 10;
-  score -= motions.filter(m => m.max_accel > 0.5).length * 2;
-  return Math.max(0, score);
+  
+  // Borrowed logic from QA_Trip.jsx
+  const tempViolations = temps.filter(t => Number(t.avg) > -18);
+  const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
+  
+  const majorShocks = motions.filter(m => m.max_accel > 0.5);
+  const minorShocks = motions.filter(m => m.max_accel > 0.2 && m.max_accel <= 0.5);
+  
+  const score = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5) - (minorShocks.length * 2)));
+  return score;
 }
-export function riskStatus(score) {
+export function riskLevel(score) {
   if (score < 70) return 'crit';
   if (score < 90) return 'warn';
   return 'safe';
@@ -125,7 +124,13 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
 
   const baseFilteredTrips = trips.filter(t => {
     if (truckFilter !== 'all' && t.truck_id !== truckFilter) return false;
-    if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+    
+    // Check if trip is complete according to DB structure
+    const isComplete = t.status === 'Complete' || t.status === 'COMPLETED';
+    
+    if (statusFilter === 'ACTIVE' && isComplete) return false;
+    if (statusFilter === 'COMPLETED' && !isComplete) return false;
+    
     return true;
   });
 
@@ -136,14 +141,27 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
     const shockEvents = motions.filter(m => m.max_accel > 0.5).length;
     const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
+    
+    // Borrowed Alert Logic from QA Inspector
+    const hasTempViolation = temps.some(t => Number(t.avg) > -18);
+    const hasMajorShock = maxShock > 0.5;
+
     const quality = computeQuality(sensors);
-    const status = riskStatus(quality);
-    return { ...trip, currentTemp, shockEvents, maxShock, quality, status };
+    
+    // QA Logic: Temp violation is Critical, Major Shock is Warning
+    let risk = 'safe';
+    if (hasTempViolation) risk = 'crit';
+    else if (hasMajorShock) risk = 'warn';
+
+    return { ...trip, currentTemp, shockEvents, maxShock, quality, riskLevel: risk, hasTempViolation, hasMajorShock };
   });
 
-  const activeFull = enriched.filter(t => { const found = baseFilteredTrips.find(x => x.trip_id === t.trip_id); return found?.active || found?.status === 'ACTIVE'; });
-  const critCount = enriched.filter(t => t.status === 'crit').length;
-  const warnCount = enriched.filter(t => t.status === 'warn').length;
+  // A trip is active if its status is NOT Complete/COMPLETED
+  const activeFull = enriched.filter(t => t.status !== 'Complete' && t.status !== 'COMPLETED');
+  
+  // QA-Aligned Alert Counts
+  const critCount = enriched.filter(t => t.hasTempViolation).length;
+  const warnCount = enriched.filter(t => t.hasMajorShock && !t.hasTempViolation).length;
   const allTemps = activeFull.filter(t => t.currentTemp !== null).map(t => t.currentTemp);
   const avgTemp = allTemps.length > 0 ? (allTemps.reduce((a, b) => a + b, 0) / allTemps.length).toFixed(1) : null;
   const avgQuality = enriched.length > 0 ? Math.round(enriched.reduce((s, t) => s + t.quality, 0) / enriched.length) : 100;
@@ -203,7 +221,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
   };
 
   // Alerts
-  const alerts = enriched.filter(t => t.status === 'crit' || t.status === 'warn').map(t => {
+  const alerts = enriched.filter(t => t.riskLevel === 'crit' || t.riskLevel === 'warn').map(t => {
     const reasons = [];
     if (t.currentTemp !== null && t.currentTemp > -18) reasons.push(`Temp breached: ${t.currentTemp.toFixed(1)}°C`);
     if (t.shockEvents > 0) reasons.push(`${t.shockEvents} vibration event${t.shockEvents > 1 ? 's' : ''}`);
@@ -216,7 +234,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
     {
       label: 'Active Trucks', value: activeFull.length,
       icon: '🚛', iconBg: '#eff6ff', color: '#3b82f6',
-      sub: `${baseFilteredTrips.filter(t => t.active === false || t.status === 'COMPLETED' || t.status === 'Complete').length} completed today`, subColor: '#059669'
+      sub: `${trips.filter(t => t.status === 'Complete' || t.status === 'COMPLETED').length} completed today`, subColor: '#059669'
     },
     {
       label: 'Critical Alerts', value: critCount,
@@ -280,16 +298,32 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
           {uniqueTrucks.map(id => <option key={id} value={id}>🚛 {id}</option>)}
         </select>
 
-        <select 
-          className={`owner-filter-chip ${statusFilter !== 'all' ? 'owner-filter-chip--active' : ''}`}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ appearance: 'auto', outline: 'none', cursor: 'pointer' }}
-        >
-          <option value="all">📋 All Trips</option>
-          <option value="ACTIVE">🟢 Active Trips</option>
-          <option value="COMPLETED">⚪ Completed Trips</option>
-        </select>
+        <div className="owner-slider-filter">
+          <button 
+            className={`owner-slider-btn ${statusFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('all')}
+          >
+            📋 All Trips
+          </button>
+          <button 
+            className={`owner-slider-btn ${statusFilter === 'ACTIVE' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('ACTIVE')}
+          >
+            🟢 Active
+          </button>
+          <button 
+            className={`owner-slider-btn ${statusFilter === 'COMPLETED' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('COMPLETED')}
+          >
+            ⚪ Complete
+          </button>
+          <div 
+            className="owner-slider-indicator" 
+            style={{ 
+              transform: `translateX(${statusFilter === 'all' ? '0' : statusFilter === 'ACTIVE' ? '100%' : '200%'})` 
+            }}
+          />
+        </div>
       </div>
 
       {/* KPIs */}
@@ -368,12 +402,12 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ flex: 1, height: 5, background: '#f0f2f8', borderRadius: 4, maxWidth: 64, minWidth: 40 }}>
-                          <div style={{ width: `${trip.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s', background: trip.status === 'safe' ? '#059669' : trip.status === 'warn' ? '#d97706' : '#dc2626' }} />
+                          <div style={{ width: `${trip.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s', background: trip.riskLevel === 'safe' ? '#059669' : trip.riskLevel === 'warn' ? '#d97706' : '#dc2626' }} />
                         </div>
                         <span style={{ fontSize: '0.82rem', fontWeight: 700, minWidth: 32 }}>{trip.quality}%</span>
                       </div>
                     </td>
-                    <td><StatusBadge status={trip.status} /></td>
+                    <td><StatusBadge status={trip.riskLevel} /></td>
                     <td>
                       <button className="owner-btn owner-btn--ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '1rem', letterSpacing: '0.1em' }}>•••</button>
                     </td>
@@ -428,15 +462,15 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
             <Gauge value={overallRisk} size={200} />
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.73rem', color: '#6b7280', marginTop: '0.5rem', borderTop: '1px solid #f0f2f8', paddingTop: '0.875rem', width: '100%', justifyContent: 'space-around' }}>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
-                <span style={{ fontWeight: 800, color: '#059669', fontSize: '1.1rem' }}>{enriched.filter(t => t.status === 'safe').length}</span>
+                <span style={{ fontWeight: 800, color: '#059669', fontSize: '1.1rem' }}>{enriched.filter(t => t.riskLevel === 'safe').length}</span>
                 <span style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Safe</span>
               </span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
-                <span style={{ fontWeight: 800, color: '#d97706', fontSize: '1.1rem' }}>{enriched.filter(t => t.status === 'warn').length}</span>
+                <span style={{ fontWeight: 800, color: '#d97706', fontSize: '1.1rem' }}>{enriched.filter(t => t.riskLevel === 'warn').length}</span>
                 <span style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Warning</span>
               </span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
-                <span style={{ fontWeight: 800, color: '#dc2626', fontSize: '1.1rem' }}>{enriched.filter(t => t.status === 'crit').length}</span>
+                <span style={{ fontWeight: 800, color: '#dc2626', fontSize: '1.1rem' }}>{enriched.filter(t => t.riskLevel === 'crit').length}</span>
                 <span style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Critical</span>
               </span>
             </div>
@@ -463,7 +497,7 @@ export function OwnerHome({ trips, liveData, isLoading, onRefresh, connStatus })
                 <div className="owner-alert-item__desc">{t.reasons.join(' · ')}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem', flexShrink: 0 }}>
-                <StatusBadge status={t.status} />
+                <StatusBadge status={t.riskLevel} />
                 <div className="owner-alert-item__time">{timeAgo(liveData[t.trip_id]?.last_updated)}</div>
               </div>
             </div>

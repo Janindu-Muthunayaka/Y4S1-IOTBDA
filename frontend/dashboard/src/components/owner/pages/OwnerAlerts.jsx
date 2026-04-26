@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { computeQuality, riskStatus, timeAgo, fmtDate } from './OwnerHome';
+import { computeQuality, riskLevel, timeAgo, fmtDate } from './OwnerHome';
 
 // ─── Alert Builder ────────────────────────────────────────────────────────────
 function buildAlerts(trips, liveData) {
