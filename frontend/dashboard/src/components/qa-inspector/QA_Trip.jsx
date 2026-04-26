@@ -12,6 +12,8 @@ export default function QA_Trip() {
     const navigate = useNavigate();
     const [tripDetails, setTripDetails] = useState(null);
     const [sensorData, setSensorData] = useState(null);
+    const [mlScore, setMlScore] = useState(null);
+    const [mlScoreStatus, setMlScoreStatus] = useState('loading');
     const [isLoading, setIsLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState('just now');
     const syncTimer = useRef(0);
@@ -28,7 +30,9 @@ export default function QA_Trip() {
     const tempCompliance = temps.length > 0 ? Math.round(((temps.length - tempViolations.length) / temps.length) * 100) : 100;
     const majorShocks = motions.filter(m => m.max_accel > 0.5);
     const minorShocks = motions.filter(m => m.max_accel > 0.2 && m.max_accel <= 0.5);
-    const qualityScore = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5) - (minorShocks.length * 2)));
+    const fallbackScore = Math.max(0, Math.floor(tempCompliance - (majorShocks.length * 5) - (minorShocks.length * 2)));
+    const qualityScore = mlScore !== null ? Math.max(0, Math.min(100, Math.round(mlScore))) : fallbackScore;
+    const isQualityLoading = mlScoreStatus === 'loading';
     const isLowRisk = qualityScore > 80;
 
     // KPI Colors
@@ -93,14 +97,29 @@ export default function QA_Trip() {
         let mounted = true;
         const fetch = async () => {
             try {
-                const { data } = await axios.get(`${API_BASE}/api/trips/${id}/sensors`);
+                // 1. Fetch sensor data first for immediate rendering
+                const sensorRes = await axios.get(`${API_BASE}/api/trips/${id}/sensors`);
                 if (mounted) {
-                    setTripDetails(data.trip);
-                    setSensorData(data.sensorData || { temperature_data: [], motion_data: [] });
+                    setTripDetails(sensorRes.data.trip);
+                    setSensorData(sensorRes.data.sensorData || { temperature_data: [], motion_data: [] });
                     setIsLoading(false);
                     syncTimer.current = 0;
                     setLastSynced('just now');
                 }
+                
+                // 2. Fetch ML score asynchronously without blocking
+                axios.get(`${API_BASE}/api/quality-score/${id}`)
+                    .then(mlRes => {
+                        if (mounted) {
+                            if (mlRes.data && mlRes.data.success && mlRes.data.quality_score !== undefined) {
+                                setMlScore(mlRes.data.quality_score);
+                                setMlScoreStatus('success');
+                            } else {
+                                setMlScoreStatus(prev => prev === 'loading' ? 'error' : prev);
+                            }
+                        }
+                    })
+                    .catch(() => { if (mounted) setMlScoreStatus(prev => prev === 'loading' ? 'error' : prev); });
             } catch (err) {
                 console.error(err);
                 if (mounted) setIsLoading(false);
@@ -112,7 +131,12 @@ export default function QA_Trip() {
             syncTimer.current += 1;
             setLastSynced(`${syncTimer.current}s ago`);
         }, 1000);
-        return () => { mounted = false; clearInterval(dataInterval); clearInterval(tickInterval); };
+        
+        const timeoutId = setTimeout(() => {
+            if (mounted) setMlScoreStatus(prev => prev === 'loading' ? 'timeout' : prev);
+        }, 10000);
+
+        return () => { mounted = false; clearInterval(dataInterval); clearInterval(tickInterval); clearTimeout(timeoutId); };
     }, [id]);
 
     // Helpers
@@ -226,14 +250,23 @@ export default function QA_Trip() {
                 <div className="qt-kpi-banner">
                     <div className="qt-kpi-card" style={{ 
                         minHeight: '116px', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '1.2rem',
-                        background: qualityBg, borderLeft: `4px solid ${qualityColor}`, borderColor: qualityColor 
+                        background: isQualityLoading ? '#f9fafb' : qualityBg, borderLeft: `4px solid ${isQualityLoading ? '#d1d5db' : qualityColor}`, borderColor: isQualityLoading ? '#d1d5db' : qualityColor 
                     }}>
-                        <div className="qt-kpi-label" style={{ fontSize: '0.9rem', marginBottom: '6px' }}>Quality Score</div>
-                        <div className="qt-kpi-value" style={{ fontSize: '2.8rem', fontWeight: 700, margin: '2px 0', color: qualityColor }}>{qualityScore}</div>
-                        <div className="qt-kpi-sub" style={{ fontSize: '0.8rem', marginTop: '2px', color: qualityColor }}>
-                            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ marginRight: '4px' }}><polyline points="18 15 12 9 6 15" /></svg>
-                            {qualityScore >= 80 ? 'All indicators good' : qualityScore >= 60 ? 'Needs attention' : 'Critical issue'}
-                        </div>
+                        <div className="qt-kpi-label" style={{ fontSize: '0.9rem', marginBottom: '6px', color: isQualityLoading ? '#6b7280' : 'inherit' }}>Quality Score</div>
+                        {isQualityLoading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 'auto 0' }}>
+                                <div className="qa-loading-spinner" style={{ width: '22px', height: '22px', borderWidth: '3px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                                <span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 600 }}>Calculating…</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="qt-kpi-value" style={{ fontSize: '2.8rem', fontWeight: 700, margin: '2px 0', color: qualityColor }}>{qualityScore}</div>
+                                <div className="qt-kpi-sub" style={{ fontSize: '0.8rem', marginTop: '2px', color: qualityColor }}>
+                                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ marginRight: '4px' }}><polyline points="18 15 12 9 6 15" /></svg>
+                                    {qualityScore >= 80 ? 'All indicators good' : qualityScore >= 60 ? 'Needs attention' : 'Critical issue'}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* 2. Risk Status */}

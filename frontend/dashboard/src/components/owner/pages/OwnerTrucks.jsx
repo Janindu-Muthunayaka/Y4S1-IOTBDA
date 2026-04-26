@@ -1,9 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { computeQuality, riskLevel, StatusBadge } from './OwnerHome';
 
 export default function OwnerTrucks({ trips, liveData }) {
   const navigate = useNavigate();
+  const [mlTimeout, setMlTimeout] = useState(false);
+  const [artificialLoading, setArtificialLoading] = useState(true);
+
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => setMlTimeout(true), 10000);
+    const minTimer = setTimeout(() => setArtificialLoading(false), 2000);
+    return () => { clearTimeout(fallbackTimer); clearTimeout(minTimer); };
+  }, []);
 
   // Group by truck_id, pick most recent trip per truck
   const truckMap = {};
@@ -98,7 +106,13 @@ export default function OwnerTrucks({ trips, liveData }) {
                   </div>
                   <div className="owner-truck-card__metric">
                     <div className="owner-truck-card__metric-label">⭐ Quality</div>
-                    <div className="owner-truck-card__metric-value">{truck.quality}%</div>
+                    {((!liveData[truck.trip_id]?.ml_quality && !mlTimeout) || artificialLoading) ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                        <div className="qa-loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                      </div>
+                    ) : (
+                      <div className="owner-truck-card__metric-value">{truck.quality}%</div>
+                    )}
                   </div>
                   <div className="owner-truck-card__metric">
                     <div className="owner-truck-card__metric-label">📦 Trips</div>
@@ -110,13 +124,17 @@ export default function OwnerTrucks({ trips, liveData }) {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#9ca3af', marginBottom: '0.3rem' }}>
                     <span>Quality Score</span>
-                    <span>{truck.quality}%</span>
+                    <span>{((!liveData[truck.trip_id]?.ml_quality && !mlTimeout) || artificialLoading) ? '...' : `${truck.quality}%`}</span>
                   </div>
                   <div style={{ height: 5, background: '#f3f4f6', borderRadius: 4 }}>
-                    <div style={{
-                      width: `${truck.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s',
-                      background: truck.riskLevel === 'safe' ? '#10b981' : truck.riskLevel === 'warn' ? '#f59e0b' : '#ef4444'
-                    }} />
+                    {((!liveData[truck.trip_id]?.ml_quality && !mlTimeout) || artificialLoading) ? (
+                       <div style={{ width: '100%', height: '100%', borderRadius: 4, background: '#e5e7eb', animation: 'o-pulse 1.5s ease-in-out infinite' }} />
+                    ) : (
+                      <div style={{
+                        width: `${truck.quality}%`, height: '100%', borderRadius: 4, transition: 'width 0.6s',
+                        background: truck.riskLevel === 'safe' ? '#10b981' : truck.riskLevel === 'warn' ? '#f59e0b' : '#ef4444'
+                      }} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -147,7 +165,7 @@ export default function OwnerTrucks({ trips, liveData }) {
             <tbody>
               {trips.slice(0, 20).map(trip => (
                 <tr key={trip.trip_id} onClick={() => navigate(`/owner/trucks/${trip.truck_id}?trip=${trip.trip_id}`)} style={{ cursor: 'pointer' }}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '0.72rem', maxWidth: '280px', wordBreak: 'break-all' }}>{trip.trip_id}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{trip.trip_id}</td>
                   <td>{trip.truck_id}</td>
                   <td>
                     <span className={`o-badge ${(trip.trip_type === 'OUTGOING' || trip.trip_direction === 'OUTBOUND') ? 'o-badge--info' : 'o-badge--neutral'}`}>

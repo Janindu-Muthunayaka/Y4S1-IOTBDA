@@ -23,6 +23,15 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   const [tripDetail, setTripDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const { updateSnapshot } = useChatbot();
+  
+  const [mlTimeout, setMlTimeout] = useState(false);
+  const [artificialLoading, setArtificialLoading] = useState(true);
+
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => setMlTimeout(true), 10000);
+    const minTimer = setTimeout(() => setArtificialLoading(false), 2000);
+    return () => { clearTimeout(fallbackTimer); clearTimeout(minTimer); };
+  }, []);
 
   // Find the most recent trip for this truck
   const truckTrips = allTrips.filter(t => t.truck_id === truckId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -112,6 +121,14 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   );
 
   // Charts
+  const formatChartTime = (timeStr) => {
+    try {
+      const d = new Date(timeStr);
+      if (!isNaN(d.getTime())) return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return timeStr.split(' ')[1] || timeStr;
+    } catch { return timeStr; }
+  };
+
   const chartOpts = {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false } },
@@ -122,7 +139,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   };
 
   const tempChartData = {
-    labels: temps.map(t => fmtTime(t.time)),
+    labels: temps.map(t => formatChartTime(t.time)),
     datasets: [{
       label: 'Temperature (°C)',
       data: temps.map(t => Number(t.avg)),
@@ -142,7 +159,7 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
   };
 
   const vibChartData = {
-    labels: motions.map(m => fmtTime(m.time)),
+    labels: motions.map(m => formatChartTime(m.time)),
     datasets: [{
       label: 'Vibration (g)',
       data: motions.map(m => m.max_accel),
@@ -264,7 +281,19 @@ export default function OwnerTruckDetail({ trips: allTrips }) {
               <div className="owner-card__title">🎯 Trip Risk Status</div>
             </div>
             <div className="owner-card__body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Gauge value={quality} size={200} />
+              <div style={{ marginBottom: '0.75rem', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {((!sensorData?.ml_quality && !mlTimeout) || artificialLoading) ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <div className="qa-loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: '#d1d5db', borderTopColor: '#3b82f6' }}></div>
+                    <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>Analyzing Quality...</span>
+                  </div>
+                ) : sensorData?.ml_quality !== undefined ? (
+                  <span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#eff6ff', padding: '0.25rem 0.6rem', borderRadius: '4px' }}>
+                    ✓ ML Verified
+                  </span>
+                ) : null}
+              </div>
+              <Gauge value={((!sensorData?.ml_quality && !mlTimeout) || artificialLoading) ? 0 : quality} size={200} />
               <div style={{
                 marginTop: '0.75rem', padding: '0.4rem 1.25rem',
                 background: status === 'safe' ? '#d1fae5' : status === 'warn' ? '#fef3c7' : '#fee2e2',

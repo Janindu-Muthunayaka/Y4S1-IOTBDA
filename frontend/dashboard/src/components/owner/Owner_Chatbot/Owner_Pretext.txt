@@ -1,7 +1,7 @@
 FLEET DASHBOARD SNAPSHOT:
 Total Trips Monitored: 6
 Active Trips: 0
-Average Fleet Quality Score: 94.1/100
+Average Fleet Quality Score: 81.7/100
 Average Fleet Temperature: -18.3°C
 Total Alerts Active: 5
 

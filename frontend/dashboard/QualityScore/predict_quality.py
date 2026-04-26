@@ -6,8 +6,8 @@ import pandas as pd
 import os
 
 # Scaling and Offset parameters (configurable)
-WEIGHT_LOSS_SCALE = 1.0  # Adjust if weight loss needs scaling
-SHOCK_COUNT_SCALE = 1.0  # Adjust if shock count needs scaling
+WEIGHT_LOSS_SCALE = 4.0  # Amplifying real-world loss (1% -> 4%) to match model training (SAFE ~4, CRIT ~16)
+SHOCK_COUNT_SCALE = 4.0  # Amplifying shock events (1 -> 4) to match model training
 
 def main():
     # Read JSON from stdin
@@ -56,7 +56,8 @@ def main():
         max_temp = np.max([item.get('max', 0) for item in temp_data]) if temp_data else 3.5
         min_temp = np.min([item.get('min', 0) for item in temp_data]) if temp_data else 1.0
         
-        shock_count = sum([1 for item in motion_data if item.get('harsh_event', False)]) * SHOCK_COUNT_SCALE
+        # Calculate shock count using both the harsh_event flag and acceleration thresholds (> 0.5g)
+        shock_count = sum([1 for item in motion_data if item.get('harsh_event', False) or item.get('max_accel', 0) > 0.5]) * SHOCK_COUNT_SCALE
         max_accel = np.max([item.get('max_accel', 0) for item in motion_data]) if motion_data else 2.7
         
         weight1 = trip.get('weight1', 0)

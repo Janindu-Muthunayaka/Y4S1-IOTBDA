@@ -18,11 +18,16 @@ import DriverTemperature from './components/driver/DriverTemperature';
 import DriverShocks from './components/driver/DriverShocks';
 import DriverNotifications from './components/driver/DriverNotifications';
 import OwnerDashboard from './components/owner/OwnerDashboard';
-import RetailerDashboard from './components/retailer/RetailerDashboard';
+import RetailorHome from './components/retailer/pages/RetailorHome';
+import RetailerOrders from './components/retailer/pages/RetailerOrders';
+import RetailerDelivery from './components/retailer/pages/RetailerDelivery';
+import RetailerAlerts from './components/retailer/pages/RetailerAlerts';
+
 
 // Landing Pages
 import DriverLanding from './components/driver/DriverLanding';
-import RetailerLanding from './components/retailer/RetailerLanding';
+//import RetailerLanding from './components/retailer/RetailerLanding';
+import SharedLayout from './components/retailer/layout/SharedLayout';  // ✅ Correct path
 import OwnerLanding from './components/owner/OwnerLanding';
 import QAInspectorLanding from './components/qa-inspector/QAInspectorLanding';
 
@@ -32,6 +37,7 @@ function Sidebar() {
   // Hide sidebar on specialized views that have their own full-screen layouts
   if (location.pathname.startsWith('/qa') || location.pathname.startsWith('/qa-b')) return null;
   if (location.pathname.startsWith('/owner') && location.pathname !== '/owner') return null;
+  if (location.pathname.startsWith('/retailer') && location.pathname !== '/retailer') return null;
 
   return (
     <div style={{ width: '240px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -103,8 +109,12 @@ function MainLayout() {
             <Route path="/owner" element={<OwnerLanding />} />
             <Route path="/owner/*" element={<OwnerDashboard />} />
             
-            <Route path="/retailer" element={<RetailerLanding />} />
-            <Route path="/retailer/dashboard" element={<RetailerDashboard />} />
+            <Route path="/retailer" element={<SharedLayout />}>
+            <Route index element={<RetailorHome />} />
+            <Route path="orders" element={<RetailerOrders />} />
+            <Route path="delivery" element={<RetailerDelivery />} />
+            <Route path="alerts" element={<RetailerAlerts />} />
+         </Route>
           </Routes>
         </div>
       </div>
