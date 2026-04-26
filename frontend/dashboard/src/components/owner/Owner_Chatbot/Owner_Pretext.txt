@@ -1,14 +1,13 @@
-DASHBOARD SNAPSHOT CONTENT:
-Trip ID: N/A
-Truck: N/A
-Status: N/A
-Quality Score: undefined/100
-Temperature Compliance: undefined%
+FLEET DASHBOARD SNAPSHOT:
+Total Trips Monitored: 6
+Active Trips: 0
+Average Fleet Quality Score: 94.1/100
+Average Fleet Temperature: -18.3°C
+Total Alerts Active: 5
 
-SUMMARY OF ANOMALIES:
-- Shock Events: 0
-- Cold Violations: 0
-- Hot Violations: 0
-
-DETAILED VIOLATION TIMES (Threshold Crosses):
-No threshold violations recorded. Clean run.
+CRITICAL FLEET ALERTS:
+- Truck C3809540: TEMP Alert (-17.1°C)
+- Truck C3809540: SHOCK Alert 
+- Truck C3809540: SHOCK Alert 
+- Truck C3809540: TEMP Alert (-17.6°C)
+- Truck C3809540: SHOCK Alert 

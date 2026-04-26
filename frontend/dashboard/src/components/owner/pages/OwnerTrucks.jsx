@@ -23,7 +23,7 @@ export default function OwnerTrucks({ trips, liveData }) {
     const quality = computeQuality(sensors);
     const status = riskStatus(quality);
     const tripsCount = trips.filter(t => t.truck_id === trip.truck_id).length;
-    const completedCount = trips.filter(t => t.truck_id === trip.truck_id && t.status === 'COMPLETED').length;
+    const completedCount = trips.filter(t => t.truck_id === trip.truck_id && (t.active === false || t.status === 'COMPLETED' || t.status === 'Complete')).length;
     return { ...trip, currentTemp, maxShock, quality, status, tripsCount, completedCount };
   });
 
@@ -38,7 +38,7 @@ export default function OwnerTrucks({ trips, liveData }) {
         </div>
         <div className="owner-page-header__actions">
           <div className="owner-stats-pill">
-            Active: <strong>{enriched.filter(t => trips.some(x => x.truck_id === t.truck_id && x.status === 'ACTIVE')).length}</strong>
+            Active: <strong>{enriched.filter(t => trips.some(x => x.truck_id === t.truck_id && (x.active || x.status === 'ACTIVE'))).length}</strong>
           </div>
           <div className="owner-stats-pill">
             Critical: <strong style={{ color: '#ef4444' }}>{enriched.filter(t => t.status === 'crit').length}</strong>
@@ -57,7 +57,8 @@ export default function OwnerTrucks({ trips, liveData }) {
       ) : (
         <div className="owner-truck-grid">
           {enriched.map(truck => {
-            const isActive = trips.find(x => x.trip_id === truck.trip_id)?.status === 'ACTIVE';
+            const foundTrip = trips.find(x => x.trip_id === truck.trip_id);
+            const isActive = foundTrip?.active || foundTrip?.status === 'ACTIVE';
             return (
               <div
                 key={truck.truck_id}
@@ -76,7 +77,7 @@ export default function OwnerTrucks({ trips, liveData }) {
                     {isActive ? '● Active' : '○ Docked'}
                   </span>
                   <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-                    {truck.trip_direction || 'Unknown'}
+                    {truck.trip_type || truck.trip_direction || 'Unknown'}
                   </span>
                 </div>
 
@@ -149,17 +150,27 @@ export default function OwnerTrucks({ trips, liveData }) {
                   <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{trip.trip_id.slice(0, 16)}…</td>
                   <td>{trip.truck_id}</td>
                   <td>
-                    <span className={`o-badge ${trip.trip_direction === 'OUTBOUND' ? 'o-badge--info' : 'o-badge--neutral'}`}>
-                      {trip.trip_direction || 'N/A'}
+                    <span className={`o-badge ${(trip.trip_type === 'OUTGOING' || trip.trip_direction === 'OUTBOUND') ? 'o-badge--info' : 'o-badge--neutral'}`}>
+                      {trip.trip_type || trip.trip_direction || 'N/A'}
                     </span>
                   </td>
-                  <td>{trip.weight1 != null ? `${trip.weight1} kg` : '--'}</td>
-                  <td>{trip.weight2 != null ? `${trip.weight2} kg` : '--'}</td>
+                  <td>
+                    {(() => {
+                      const w1 = trip.startWeight ?? trip.weight1;
+                      return w1 != null ? `${w1} kg` : '--';
+                    })()}
+                  </td>
+                  <td>
+                    {(() => {
+                      const w2 = trip.endWeight ?? trip.weight2;
+                      return w2 != null ? `${w2} kg` : '--';
+                    })()}
+                  </td>
                   <td style={{ color: '#6b7280' }}>
                     {trip.timestamp ? new Date(trip.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
                   </td>
                   <td>
-                    <span className={`o-badge ${trip.status === 'ACTIVE' ? 'o-badge--safe o-badge--dot' : 'o-badge--neutral'}`}>
+                    <span className={`o-badge ${(trip.active || trip.status === 'ACTIVE') ? 'o-badge--safe o-badge--dot' : 'o-badge--neutral'}`}>
                       {trip.status}
                     </span>
                   </td>
