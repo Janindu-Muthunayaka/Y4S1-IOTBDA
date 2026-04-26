@@ -1,9 +1,9 @@
 DASHBOARD SNAPSHOT CONTENT:
-Trip ID: N/A
+Trip ID: TRP-2048
 Truck: N/A
-Status: N/A
-Quality Score: undefined/100
-Temperature Compliance: undefined%
+Status: DELIVERED
+Quality Score: 87/100
+Temperature Compliance: 87%
 
 SUMMARY OF ANOMALIES:
 - Shock Events: 0
