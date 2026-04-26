@@ -9,7 +9,7 @@ import { ChatbotProvider as Owner_ChatbotProvider, useChatbot } from './Owner_Ch
 import Owner_MrHodhaMaalu from './Owner_Chatbot/Owner_MrHodhaMaalu';
 
 import './owner.css';
-import { OwnerHome } from './pages/OwnerHome';
+import { OwnerHome, computeQuality } from './pages/OwnerHome';
 import OwnerTrucks from './pages/OwnerTrucks';
 import OwnerTruckDetail from './pages/OwnerTruckDetail';
 import OwnerAlerts from './pages/OwnerAlerts';
@@ -258,17 +258,11 @@ function OwnerDashboardContent() {
       trips.forEach(t => {
         const s = liveData[t.trip_id];
         const temps = s?.temperature_data || [];
-        const motions = s?.motion_data || [];
-        
         const latestTmp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
         
-        // Quality (use ML model if available)
-        let score = s?.ml_quality !== undefined ? s.ml_quality : 100;
-        if (s?.ml_quality === undefined) {
-          if (latestTmp !== null && latestTmp > -18) score -= 10;
-          score -= motions.filter(m => m.max_accel > 0.5).length * 2;
-        }
-        totalQuality += Math.max(0, score);
+        // Quality (use ML model if available via computeQuality helper)
+        const score = computeQuality(s);
+        totalQuality += score;
 
         // Temp
         if (latestTmp !== null) {
@@ -276,9 +270,9 @@ function OwnerDashboardContent() {
           tempCount++;
         }
 
-        // Alerts
-        if (latestTmp > -18) alerts.push({ truck: t.truck_id, type: 'TEMP', val: latestTmp });
-        if (motions.some(m => m.max_accel > 0.5)) alerts.push({ truck: t.truck_id, type: 'SHOCK' });
+        // Alerts (QA Standard: Temp > -18 is Critical alert)
+        if (latestTmp !== null && latestTmp > -18) alerts.push({ truck: t.truck_id, type: 'TEMP', val: latestTmp });
+        if (s?.motion_data?.some(m => m.max_accel > 0.5)) alerts.push({ truck: t.truck_id, type: 'SHOCK' });
       });
 
       // Only update Fleet snapshot if we are NOT on a specific truck details page
@@ -300,10 +294,9 @@ function OwnerDashboardContent() {
   const critCount = trips.filter(trip => {
     const sensors = liveData[trip.trip_id];
     const temps = sensors?.temperature_data || [];
-    const motions = sensors?.motion_data || [];
     const currentTemp = temps.length > 0 ? Number(temps[temps.length - 1].avg) : null;
-    const maxShock = motions.length > 0 ? Math.max(...motions.map(m => m.max_accel)) : 0;
-    return (currentTemp !== null && currentTemp > -18) || maxShock > 0.5;
+    // QA Logic: Only Temp violations are 'Critical'
+    return (currentTemp !== null && currentTemp > -18);
   }).length;
 
   const sensorCount = Object.keys(liveData).length;

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useChatbot } from './ChatbotContext';
+import { useLocation } from 'react-router-dom';
 import './MrHodhaMaalu.css';
 import detectiveIcon from './Detective.png';
 
 const API_BASE = 'http://localhost:3001';
 
 export default function MrHodhaMaalu() {
+    const location = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
@@ -111,12 +113,13 @@ export default function MrHodhaMaalu() {
         return pretext;
     }, []);
 
-    // Auto-update pretext when dashboard data changes and chat is open
+    // Auto-update pretext when dashboard data changes or route changes
     useEffect(() => {
-        if (isOpen && dashboardData) {
+        if (dashboardData) {
+            console.log("[Chatbot] Page/Data change detected. Reloading pretext...");
             createPretext(dashboardData);
         }
-    }, [isOpen, dashboardData, createPretext]);
+    }, [dashboardData, location.pathname, createPretext]);
 
     const toggleChat = async () => {
         if (!isOpen) {
