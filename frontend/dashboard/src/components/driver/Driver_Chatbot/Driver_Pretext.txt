@@ -1,8 +1,7 @@
 DASHBOARD SNAPSHOT CONTENT:
-Currently Viewing: Temperature Page
-Trip: TRIP-C3809540-1777135936387 (Complete)
+Currently Viewing: Shocks Page
+Trip: TRIP-4021C561-1777122372378 (Complete)
 
---- TEMPERATURE ANALYTICS ---
-Current: -18.6°C
-Compliance: 100%
-Anomalies: 9
+--- SHOCK ANALYTICS ---
+Current Status: ALERT
+Total Events: 2
