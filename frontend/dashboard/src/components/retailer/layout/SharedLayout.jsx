@@ -4,20 +4,20 @@ import { ChatbotProvider as Retail_ChatbotProvider } from '../Retail_Chatbot/Ret
 import Retail_MrHodhaMaalu from '../Retail_Chatbot/Retail_MrHodhaMaalu';
 
 const GridIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
     <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
   </svg>
 )
 const DocIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
     <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
     <line x1="16" y1="17" x2="8" y2="17"/>
   </svg>
 )
 const TruckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
     <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
   </svg>
@@ -59,7 +59,7 @@ function SharedLayoutContent() {
 
       {/* ── Sidebar ── */}
       <aside style={{
-        width: 155, minWidth: 155,
+        width: 170, minWidth: 170,
         background: 'linear-gradient(180deg, #16022e 0%, #2d0a52 45%, #521278 100%)',
         display: 'flex', flexDirection: 'column',
         position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 100,
@@ -98,7 +98,7 @@ function SharedLayoutContent() {
               onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 14px', cursor: 'pointer',
+                padding: '11px 14px', cursor: 'pointer',
                 color: active ? '#fff' : 'rgba(255,255,255,0.82)',
                 background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
                 borderRadius: 8,
@@ -106,6 +106,7 @@ function SharedLayoutContent() {
                 fontSize: 13, fontWeight: active ? 600 : 400,
                 position: 'relative',
                 transition: 'background 0.12s',
+                minHeight: 42, 
               }}
             >
               {/* Active left accent bar */}
