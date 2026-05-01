@@ -1,23 +1,21 @@
 SINGLE TRIP DASHBOARD SNAPSHOT:
-Trip ID: TRIP-C3809540-1777135426407
+Trip ID: TRIP-C3809540-1777135936387
 Truck: C3809540
 Status: Complete
-Cargo Shrinkage (Weight Loss): -0.1%
-Quality Score: 32/100
-Temperature Compliance: 41%
+Cargo Shrinkage (Weight Loss): 1.4%
+Quality Score: 59/100
+Temperature Compliance: 61%
 
 SUMMARY OF ANOMALIES:
-- Shock Events: 1
+- Shock Events: 0
 - Cold Violations: 0
-- Hot Violations: 29
+- Hot Violations: 9
 
 DETAILED VIOLATION TIMES (Threshold Crosses):
 High TEMP excursions (>-18°C):
-  - 2026-04-25T16:50:53.979Z: -15.7°C
-  - 2026-04-25T16:50:54.459Z: -16.0°C
-  - 2026-04-25T16:50:54.958Z: -15.9°C
-  - 2026-04-25T16:50:56.676Z: -15.9°C
-  - 2026-04-25T16:50:58.641Z: -15.8°C
-  ... and 24 more events.
-SHOCK events (>0.5G):
-  - 2026-04-25T16:50:04.764Z: 0.51G
+  - 2026-04-25T16:52:16.629Z: -17.8°C
+  - 2026-04-25T16:52:20.569Z: -17.9°C
+  - 2026-04-25T16:52:24.511Z: -17.8°C
+  - 2026-04-25T16:52:24.998Z: -17.7°C
+  - 2026-04-25T16:52:26.713Z: -17.8°C
+  ... and 4 more events.

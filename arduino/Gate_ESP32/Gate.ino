@@ -23,12 +23,12 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 // --- Logic Tuning ---
-const float minimumUploadValue = 0.0; // grams. Only send to broker if weight > this value.
+const float minimumUploadValue = 0.0;
 
 // --- HX711 Tuning ---
-const float DIVIDER   = -23.0;
+const float DIVIDER   = 650;   // ← kept from your button version
 const float OFFSET    = 0;
-const float ZERO_BAND = 5.0;  // snap to 0 if within ±5g
+const float ZERO_BAND = 5.0;
 
 // --- RFID Setup ---
 MFRC522DriverPinSimple ss_pin(SS_PIN);
@@ -47,26 +47,20 @@ void setup_wifi() {
   Serial.print("Connecting to WiFi: ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { 
-    delay(500); 
-    Serial.print(".");
-  }
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
   Serial.println("\nWiFi Connected!");
 }
 
 void reconnect() {
   while (!client.connected() && WiFi.status() == WL_CONNECTED) {
-    Serial.print("WiFi IP: ");
-    Serial.println(WiFi.localIP());
+    Serial.print("WiFi IP: "); Serial.println(WiFi.localIP());
     Serial.print("Attempting MQTT connection...");
     String clientId = "ESP32Gate-";
     clientId += String(random(0xffff), HEX);
-    
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
+      Serial.print("failed, rc="); Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
       delay(5000);
     }
@@ -77,14 +71,12 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  // Init WiFi
   setup_wifi();
   client.setServer(mqtt_server, 1883);
 
   IPAddress brokerIP;
   if (WiFi.hostByName(mqtt_server, brokerIP)) {
-    Serial.print("Broker resolved to: ");
-    Serial.println(brokerIP);
+    Serial.print("Broker resolved to: "); Serial.println(brokerIP);
   } else {
     Serial.println("DNS resolution FAILED");
   }
@@ -96,10 +88,7 @@ void setup() {
 
   // Init Scale
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  if (!scale.is_ready()) {
-    Serial.println("ERROR: HX711 not found!");
-    while (1);
-  }
+  if (!scale.is_ready()) { Serial.println("ERROR: HX711 not found!"); while (1); }
 
   Serial.println("Zeroing scale... DO NOT TOUCH for 3 seconds.");
   delay(3000);
@@ -109,22 +98,15 @@ void setup() {
 
 void loop() {
   bool currentWiFiState = (WiFi.status() == WL_CONNECTED);
-  
-  // Ensure we are connected without blocking the main loop aggressively
-  if (!currentWiFiState) {
-    // optional: attempt reconnect or wait for auto-reconnect
-  } else {
+  if (currentWiFiState) {
     if (!client.connected()) reconnect();
     if (client.connected()) client.loop();
   }
 
   bool currentMQTTState = client.connected();
-
-  // Print Status Update ONLY when a connection state changes
   if (currentWiFiState != lastWiFiState || currentMQTTState != lastMQTTState) {
     lastWiFiState = currentWiFiState;
     lastMQTTState = currentMQTTState;
-    
     Serial.println("\n--- System Status Changed ---");
     Serial.print("WiFi: "); Serial.println(currentWiFiState ? "CONNECTED" : "DISCONNECTED");
     Serial.print("MQTT: "); Serial.println(currentMQTTState ? "CONNECTED" : "DISCONNECTED");
@@ -132,9 +114,7 @@ void loop() {
   }
 
   // Wait for a new RFID card
-  if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
-    return;
-  }
+  if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) return;
 
   // Read card UID
   String uidStr = "";
@@ -144,64 +124,47 @@ void loop() {
   }
   uidStr.toUpperCase();
 
-  // Print UID
   Serial.print(F("UID: "));
   MFRC522Debug::PrintUID(Serial, mfrc522.uid);
   Serial.println();
 
-  // Print card type
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
   Serial.print(F("Card type: "));
   Serial.println(MFRC522Debug::PICC_GetTypeName(piccType));
 
   float grams = 0;
-  // Read weight
   if (scale.is_ready()) {
     long raw = scale.get_value(10);
     grams = (raw / DIVIDER) + OFFSET;
     if (abs(grams) <= ZERO_BAND) grams = 0.0;
-
-    Serial.print(F("Weight: "));
-    Serial.print(grams, 1);
-    Serial.println(F(" g"));
+    Serial.print(F("Weight: ")); Serial.print(grams, 1); Serial.println(F(" g"));
   } else {
     Serial.println(F("Weight: HX711 not ready"));
   }
 
-  // --- MQTT LOGIC ---
   if (grams > minimumUploadValue) {
     Serial.println("[LOGIC] Conditions met. Preparing ...");
-    
-    // Create JSON Payload
     DynamicJsonDocument doc(256);
-    doc["type"] = "gate_scan";
-    doc["truck_id"] = uidStr;
-    doc["weight"] = grams;
+    doc["type"]           = "gate_scan";
+    doc["truck_id"]       = uidStr;
+    doc["weight"]         = grams;
     doc["trip_direction"] = "TOBEDECLARED";
-
-    // Use a String to serialize safely and avoid memory corruption / garbage characters
     String payload;
     serializeJson(doc, payload);
-    
     if (client.connected()) {
       Serial.print("[PUBLISH] Sending to IOTBDAGateOne: ");
-      //Serial.println(payload);
       client.publish("IOTBDAGateOne", payload.c_str());
     } else {
       Serial.println("[ERROR] Cannot publish. MQTT is disconnected!");
     }
   } else {
-    Serial.print("[LOGIC] Ignored. Weight (");
-    Serial.print(grams, 1);
+    Serial.print("[LOGIC] Ignored. Weight ("); Serial.print(grams, 1);
     Serial.print("g) is not greater than minimumUploadValue (");
-    Serial.print(minimumUploadValue, 1);
-    Serial.println("g).");
+    Serial.print(minimumUploadValue, 1); Serial.println("g).");
   }
 
   Serial.println(F("----------------------------------------"));
-
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
-
-  delay(2000); // debounce — prevent double-reads
+  delay(2000);
 }

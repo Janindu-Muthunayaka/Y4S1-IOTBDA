@@ -52,12 +52,24 @@ def main():
         temp_data = sensor_data.get('temperature_data', [])
         motion_data = sensor_data.get('motion_data', [])
         
-        avg_temp = np.mean([item.get('avg', 0) for item in temp_data]) if temp_data else 2.0
-        max_temp = np.max([item.get('max', 0) for item in temp_data]) if temp_data else 3.5
-        min_temp = np.min([item.get('min', 0) for item in temp_data]) if temp_data else 1.0
+        # Map real-world sensor temperatures (where safe max is ~ -18) to model temperatures (where safe max is ~ +4)
+        TEMP_OFFSET = 22.0
         
-        # Calculate shock count using both the harsh_event flag and acceleration thresholds (> 0.5g)
-        shock_count = sum([1 for item in motion_data if item.get('harsh_event', False) or item.get('max_accel', 0) > 0.5]) * SHOCK_COUNT_SCALE
+        avg_temp = (np.mean([item.get('avg', 0) for item in temp_data]) + TEMP_OFFSET) if temp_data else 2.0
+        max_temp = (np.max([item.get('max', 0) for item in temp_data]) + TEMP_OFFSET) if temp_data else 3.5
+        min_temp = (np.min([item.get('min', 0) for item in temp_data]) + TEMP_OFFSET) if temp_data else 1.0
+        
+        # Calculate shock count with weighted severity for g shocks
+        # 0.5g (hard) = 1 count, 0.8g (critical) = 2 counts
+        base_shock_count = 0
+        for item in motion_data:
+            accel = item.get('max_accel', 0)
+            if item.get('harsh_event', False) or accel >= 0.8:
+                base_shock_count += 2
+            elif accel >= 0.5:
+                base_shock_count += 1
+                
+        shock_count = base_shock_count * SHOCK_COUNT_SCALE
         max_accel = np.max([item.get('max_accel', 0) for item in motion_data]) if motion_data else 2.7
         
         weight1 = trip.get('weight1', 0)
