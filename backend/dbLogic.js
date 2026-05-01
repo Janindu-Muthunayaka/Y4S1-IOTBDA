@@ -20,10 +20,10 @@ async function updateTripStatus(tripDoc, newStatus) {
     if (tripDoc.status === newStatus) return tripDoc; // No change needed
 
     const updateTime = new Date();
-    
+
     await Trip.updateOne(
         { _id: tripDoc._id },
-        { 
+        {
             $set: { status: newStatus },
             $push: { stateChange: { status: newStatus, timestamp: updateTime } }
         }
@@ -41,10 +41,10 @@ async function handleGateScan(truck_id, weight) {
     const activeTrip = await Trip.findOne({ truck_id, active: true }).sort({ timestamp: -1 });
     const event_type = activeTrip ? 'ENTRY' : 'EXIT';
 
-    // Check if data was received in the last 5 seconds
+    // Check if data was received in the last 10 seconds
     const timestamps = fetcher.getTruckTimestamps();
     const lastTime = timestamps[truck_id] || 0;
-    const is_transmitting = (Date.now() - lastTime) <= 5000;
+    const is_transmitting = (Date.now() - lastTime) <= 10000;
 
     console.log(`[GATE] Truck ${truck_id} ${event_type} - Transmitting: ${is_transmitting}`);
 
@@ -77,7 +77,7 @@ async function handleGateScan(truck_id, weight) {
     else if (event_type === 'ENTRY') {
         // --- END CURRENT TRIP ---
         const endTime = new Date();
-        
+
         await Trip.updateOne(
             { _id: activeTrip._id },
             {
@@ -92,7 +92,7 @@ async function handleGateScan(truck_id, weight) {
                 }
             }
         );
-        
+
         console.log(`[DB] Ended trip ${activeTrip.trip_id} at ${endTime}`);
     }
 }
@@ -108,8 +108,8 @@ async function updateSensorData(truck_id, tempStats, motionStats) {
     // If this is an INCOMING trip and we just started receiving data, 
     // it means the driver arrived at the pickup location and pressed the button.
     if (trip.trip_type === 'INCOMING' && trip.status === 'Out to Pickup') {
-        await updateTripStatus(trip, 'Reached pickup location and loading');
-        console.log(`[DB] Trip ${trip.trip_id} status updated to: Reached pickup location and loading`);
+        await updateTripStatus(trip, 'Reached pickup location and loaded');
+        console.log(`[DB] Trip ${trip.trip_id} status updated to: Reached pickup location and loaded`);
     }
 
     // Because the truck only sends data when the button is ON,
@@ -124,7 +124,7 @@ async function updateSensorData(truck_id, tempStats, motionStats) {
         };
 
         const pushDoc = {};
-        
+
         if (tempStats && tempStats.avg !== undefined) {
             pushDoc.temperature_data = {
                 time: currentTime,
@@ -158,10 +158,10 @@ async function updateSensorData(truck_id, tempStats, motionStats) {
 setInterval(async () => {
     try {
         // Only look for active, outgoing trips that are currently 'Out for Delivery'
-        const trips = await Trip.find({ 
-            active: true, 
-            trip_type: 'OUTGOING', 
-            status: 'Out for Delivery' 
+        const trips = await Trip.find({
+            active: true,
+            trip_type: 'OUTGOING',
+            status: 'Out for Delivery'
         });
 
         if (trips.length === 0) return;
@@ -171,11 +171,11 @@ setInterval(async () => {
 
         for (const trip of trips) {
             const lastTime = timestamps[trip.truck_id] || 0;
-            
-            // If no data has been received in the last 5 seconds, it means the switch was turned OFF.
-            if (now - lastTime > 5000) {
+
+            // If no data has been received in the last 10 seconds, it means the switch was turned OFF.
+            if (now - lastTime > 10000) {
                 await updateTripStatus(trip, 'Delivered and returning');
-                console.log(`[DB] Trip ${trip.trip_id} stopped transmitting for >5s. Status updated to: Delivered and returning`);
+                console.log(`[DB] Trip ${trip.trip_id} stopped transmitting for >10s. Status updated to: Delivered and returning`);
             }
         }
     } catch (err) {
