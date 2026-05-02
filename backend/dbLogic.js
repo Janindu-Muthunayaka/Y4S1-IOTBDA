@@ -97,7 +97,7 @@ async function handleGateScan(truck_id, weight) {
     }
 }
 
-async function updateSensorData(truck_id, tempStats, motionStats) {
+async function updateSensorData(truck_id, tempStats, motionStats, humidityLevel) {
     const trip = await Trip.findOne({ truck_id, active: true }).sort({ timestamp: -1 });
     if (!trip) return;
 
@@ -139,6 +139,13 @@ async function updateSensorData(truck_id, tempStats, motionStats) {
                 time: currentTime,
                 max_accel: motionStats.max_accel,
                 harsh_event: motionStats.harsh_event
+            };
+        }
+
+        if (humidityLevel) {
+            pushDoc.humidity_data = {
+                time: currentTime,
+                level: humidityLevel
             };
         }
 

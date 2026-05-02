@@ -22,7 +22,17 @@ export default function QA_Trip() {
     // Derived data
     const temps = sensorData?.temperature_data || [];
     const motions = sensorData?.motion_data || [];
+    const humidityData = sensorData?.humidity_data || [];
     const trip = tripDetails || {};
+
+    const mostFrequentHumidity = (() => {
+        if (humidityData.length === 0) return '--';
+        const counts = {};
+        humidityData.forEach(h => {
+            counts[h.level] = (counts[h.level] || 0) + 1;
+        });
+        return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    })();
 
     // KPI calculations
     const avgTemp = temps.length > 0 ? (temps.reduce((s, t) => s + (t.avg || 0), 0) / temps.length) : null;
@@ -241,6 +251,16 @@ export default function QA_Trip() {
                                     : (trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at ? fmtTime(trip.endTime || trip.end_time || trip.updatedAt || trip.updated_at) : '--:--')
                             }</span>
                         </div>
+                        <div className="qt-header-sep"></div>
+                        <div className="qt-header-field">
+                            <span className="qt-header-label">Humidity:</span>
+                            <span className="qt-header-value" style={{ 
+                                color: mostFrequentHumidity === 'High' ? '#ef4444' : mostFrequentHumidity === 'Low' ? '#22c55e' : '#f97316',
+                                fontWeight: 600
+                            }}>
+                                {mostFrequentHumidity}
+                            </span>
+                        </div>
                     </div>
                     <div className="qt-header-right">
                     </div>
@@ -283,7 +303,15 @@ export default function QA_Trip() {
                             </svg>
                         </div>
                         <div className="qt-kpi-sub" style={{ fontSize: '0.8rem', alignSelf: 'flex-start', width: '100%', color: riskColor }}>
-                            {isLowRisk ? 'All parameters normal' : `${tempViolations.length} temp + ${majorShocks.length} shock`}
+                            {(() => {
+                                if (isLowRisk) return 'All parameters normal';
+                                const alertsList = [];
+                                if (tempViolations.length > 0) alertsList.push(`${tempViolations.length} temp`);
+                                if (majorShocks.length > 0) alertsList.push(`${majorShocks.length} shock`);
+                                if (weightLossPct && parseFloat(weightLossPct) > 2) alertsList.push('weight loss');
+                                
+                                return alertsList.length > 0 ? alertsList.join(' + ') : 'Low quality score';
+                            })()}
                         </div>
                     </div>
 

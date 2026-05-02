@@ -70,10 +70,12 @@ def main():
                 base_shock_count += 1
                 
         shock_count = base_shock_count * SHOCK_COUNT_SCALE
-        max_accel = np.max([item.get('max_accel', 0) for item in motion_data]) if motion_data else 2.7
+        max_accel = np.max([item.get('max_accel', 0) for item in motion_data]) if motion_data else 0.05
         
-        weight1 = trip.get('weight1', 0)
-        weight2 = trip.get('weight2', weight1)
+        # Support both new (startWeight) and old (weight1) field names
+        weight1 = trip.get('startWeight') or trip.get('start_weight') or trip.get('weight1') or 0
+        weight2 = trip.get('endWeight') or trip.get('end_weight') or trip.get('weight2') or weight1
+        
         if weight1 > 0:
             weight_loss = ((weight1 - weight2) / weight1) * 100 * WEIGHT_LOSS_SCALE
         else:

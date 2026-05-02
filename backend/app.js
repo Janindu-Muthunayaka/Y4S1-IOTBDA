@@ -27,7 +27,8 @@ fetcher.on('truckData', async (data) => {
         await db.updateSensorData(
             data.truck_id,
             { avg: data.temperature, min: data.temperature, max: data.temperature },
-            { max_accel: data.shock_g, harsh_event: data.shock_alert }
+            { max_accel: data.shock_g, harsh_event: data.shock_alert },
+            data.humidity_level
         );
     } catch (err) {
         console.error("❌ Error processing truck sensor data:", err);

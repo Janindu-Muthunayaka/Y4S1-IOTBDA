@@ -148,17 +148,24 @@ export default function QA_Dash() {
     const renderTripRow = (trip) => {
         const departureTime = fmtTime(trip.timestamp);
         const status = trip.status || 'Unknown';
+        const sd = sensorMap[trip.trip_id];
         const isIncoming = trip.trip_type === 'INCOMING' || trip.trip_direction === 'INBOUND';
 
-        // Pickup/Action Time: Find the most significant mid-trip event
-        const pickupEvent = trip.stateChange?.find(s =>
-            s.status === 'Reached pickup location and loading' ||
-            s.status === 'Delivered and returning'
-        );
-        const pickupTime = pickupEvent ? fmtTime(pickupEvent.timestamp) : '--:--';
+        // Pickup/Action Time: 
+        // For incoming: use first sensor reading (driver pressed button at pickup)
+        // For outgoing: use the 'Delivered' state change event
+        let pickupTime = '--:--';
+        if (isIncoming) {
+            const firstReading = sd?.temperature_data?.[0]?.time || sd?.motion_data?.[0]?.time;
+            if (firstReading) pickupTime = fmtTime(firstReading);
+        } else {
+            const actionEvent = trip.stateChange?.find(s =>
+                s.status === 'Delivered and returning'
+            );
+            if (actionEvent) pickupTime = fmtTime(actionEvent.timestamp);
+        }
 
         // Arrival time: use endTime if complete, otherwise check if active
-        const sd = sensorMap[trip.trip_id];
         const arrivalRaw = trip.endTime || sd?.last_updated || trip.end_time || trip.updatedAt;
         const arrivalTime = trip.active
             ? 'In Transit'
