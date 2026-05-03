@@ -1,5 +1,5 @@
 DASHBOARD SNAPSHOT CONTENT:
-Currently Viewing: Notifications Page
+Currently Viewing: Main Dashboard
 Trip: TRIP-C3809540-1777135426407 (Complete)
 
 --- TRIP OVERVIEW ---
